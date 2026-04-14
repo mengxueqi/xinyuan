@@ -52,7 +52,12 @@ class LocalProcessedStorage:
                 "fetched_at": document.fetched_at,
             }
             for document in documents
-            if document.event_types and not document.is_duplicate and document.matched_companies
+            if (
+                document.event_types
+                and not document.is_duplicate
+                and document.matched_companies
+                and self._is_message_like_event(document)
+            )
         ]
 
         self._write_jsonl(self.clean_documents_dir / f"{batch_key}.jsonl", clean_rows)
@@ -89,3 +94,54 @@ class LocalProcessedStorage:
         if document.matched_companies:
             return ", ".join(document.matched_companies)
         return document.company_name
+
+    @staticmethod
+    def _is_message_like_event(document: ProcessedDocument) -> bool:
+        if document.source_type == "rss":
+            return True
+
+        source_name = (document.source_name or "").lower()
+        parser_type = str(document.metadata.get("parser_type", "")).lower()
+        item_kind = str(document.metadata.get("item_kind", "")).lower()
+        title = (document.title or "").lower()
+
+        message_hints = (
+            "news",
+            "press",
+            "blog",
+            "update",
+            "release",
+            "announcement",
+            "新闻",
+            "公告",
+            "动态",
+            "资讯",
+        )
+
+        snapshot_hints = (
+            "官网首页",
+            "关于我们页",
+            "招聘页",
+            "职位页",
+            "投资者关系页",
+            "jobs snapshot",
+        )
+
+        if document.source_type == "jobs":
+            return False
+        if item_kind == "page_snapshot":
+            return False
+        if parser_type in {
+            "rss_feed",
+            "news_page",
+            "news_list",
+            "news_hub_page",
+            "ir_page",
+            "notice_hub_page",
+        }:
+            return True
+        if any(hint in document.source_name for hint in snapshot_hints):
+            return False
+        if "snapshot" in title:
+            return False
+        return any(hint in source_name for hint in message_hints)

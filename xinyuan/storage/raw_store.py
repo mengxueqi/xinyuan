@@ -48,7 +48,7 @@ class LocalRawStorage:
             self._append_jsonl(self.raw_documents_dir / f"{effective_batch_key}.jsonl", payload)
             raw_count += 1
 
-            if source.source_type == "web":
+            if source.source_type == "web" and item.metadata.get("item_kind") == "page_snapshot":
                 snapshot_payload = self._build_page_snapshot_payload(
                     source, item, run_started_at
                 )

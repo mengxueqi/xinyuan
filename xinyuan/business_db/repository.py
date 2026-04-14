@@ -588,6 +588,19 @@ class BusinessDatabase:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_dict(row) for row in rows]
 
+    def purge_non_message_events(self) -> int:
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM events
+                WHERE source_type != 'rss'
+                   OR company_name IN ('行业通用', '琛屼笟閫氱敤')
+                   OR lower(COALESCE(title, '')) LIKE '%snapshot%'
+                   OR source_name IN ('官网首页', '关于我们页', '招聘页', '职位页', '投资者关系页')
+                """
+            )
+        return cursor.rowcount
+
     def fetch_recent_changes(
         self,
         company_name: str | None = None,
