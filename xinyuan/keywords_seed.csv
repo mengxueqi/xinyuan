@@ -1,0 +1,140 @@
+scope,company_name,keyword,keyword_type,priority,match_mode,notes
+global,,融资,event,high,or,融资相关事件
+global,,募资,event,medium,or,融资相关事件
+global,,战略投资,event,high,or,融资相关事件
+global,,A轮,event,medium,or,融资轮次
+global,,B轮,event,medium,or,融资轮次
+global,,C轮,event,medium,or,融资轮次
+global,,IPO,event,high,or,资本市场事件
+global,,上市,event,high,or,资本市场事件
+global,,合作,event,high,or,合作类事件
+global,,战略合作,event,high,or,合作类事件
+global,,联合开发,event,high,or,合作类事件
+global,,共同开发,event,medium,or,合作类事件
+global,,签约,event,medium,or,合作类事件
+global,,partnership,event,high,or,合作类英文事件
+global,,collaboration,event,high,or,合作类英文事件
+global,,扩产,event,high,or,产能变化
+global,,投产,event,high,or,产能变化
+global,,量产,event,high,or,产能变化
+global,,中试,event,high,or,放大与中试
+global,,试生产,event,medium,or,放大与中试
+global,,产线,event,high,or,制造变化
+global,,产能,event,high,or,制造变化
+global,,工厂,event,high,or,制造变化
+global,,manufacturing,event,high,or,制造类英文事件
+global,,pilot plant,event,high,or,中试工厂英文事件
+global,,commercialization,event,medium,or,商业化英文事件
+global,,商业化,event,high,or,商业化进展
+global,,产品发布,event,medium,or,产品动态
+global,,新品,event,medium,or,产品动态
+global,,product launch,event,medium,or,产品动态英文
+global,,技术突破,event,medium,or,技术类事件
+global,,平台升级,event,medium,or,技术类事件
+global,,工艺优化,event,medium,or,技术类事件
+global,,scale-up,event,high,or,放大生产英文
+global,,审批,event,high,or,监管事件
+global,,备案,event,medium,or,监管事件
+global,,许可,event,high,or,监管事件
+global,,认证,event,high,or,监管事件
+global,,GRAS,event,high,or,食品与原料合规
+global,,FDA,event,high,or,监管英文缩写
+global,,EFSA,event,medium,or,欧洲监管
+global,,招聘,event,high,or,招聘变化
+global,,加入我们,event,medium,or,招聘页面常见词
+global,,careers,event,high,or,招聘页英文
+global,,jobs,event,high,or,招聘页英文
+global,,process engineer,event,medium,or,关键岗位英文
+global,,fermentation engineer,event,high,or,关键岗位英文
+global,,QA,event,medium,or,质量岗位
+global,,公告,event,high,or,公告信息
+global,,财报,event,high,or,业绩信息
+global,,投资者关系,event,high,or,IR 页面
+global,,专利,event,medium,or,知识产权
+global,,知识产权,event,medium,or,知识产权
+global,,patent,event,medium,or,知识产权英文
+global,,任命,event,medium,or,管理层变动
+global,,离职,event,medium,or,管理层变动
+global,,高管,event,medium,or,管理层变动
+global,,董事,event,medium,or,管理层变动
+global,,生物制造,tech,high,or,行业核心技术词
+global,,合成生物学,tech,high,or,行业核心技术词
+global,,生物基,tech,medium,or,行业技术词
+global,,工业生物技术,tech,medium,or,行业技术词
+global,,发酵,tech,high,or,行业核心技术词
+global,,精密发酵,tech,high,or,行业核心技术词
+global,,微生物发酵,tech,high,or,行业技术词
+global,,发酵放大,tech,high,or,行业技术词
+global,,fermentation,tech,high,or,行业技术英文
+global,,蛋白,tech,high,or,行业核心技术词
+global,,功能蛋白,tech,medium,or,行业技术词
+global,,重组蛋白,tech,medium,or,行业技术词
+global,,protein,tech,high,or,行业技术英文
+global,,enzyme,tech,medium,or,行业技术英文
+global,,平台,tech,medium,or,平台型能力
+global,,biofoundry,tech,high,or,平台型能力英文
+global,,示范线,tech,medium,or,产业化设施
+company,华恒生物,华恒生物,alias,high,and,公司识别
+company,华恒生物,安徽华恒生物,alias,high,and,公司识别
+company,华恒生物,Huaheng Bio,alias,high,and,公司识别
+company,华恒生物,Huaheng Biotechnology,alias,medium,and,公司识别
+company,华恒生物,氨基酸,focus,high,and,重点业务词
+company,华恒生物,维生素,focus,medium,and,重点业务词
+company,华恒生物,生物基材料,focus,high,and,重点业务词
+company,华恒生物,产能,focus,high,and,重点变化词
+company,华恒生物,项目,focus,medium,and,重点变化词
+company,华恒生物,工厂,focus,medium,and,重点变化词
+company,华恒生物,合作,focus,high,and,重点变化词
+company,凯赛生物,凯赛生物,alias,high,and,公司识别
+company,凯赛生物,上海凯赛生物,alias,medium,and,公司识别
+company,凯赛生物,Cathay Biotech,alias,high,and,公司识别
+company,凯赛生物,Cathay Biotech Inc,alias,medium,and,公司识别
+company,凯赛生物,聚酰胺,focus,high,and,重点业务词
+company,凯赛生物,长链二元酸,focus,high,and,重点业务词
+company,凯赛生物,戊二胺,focus,high,and,重点业务词
+company,凯赛生物,生物基材料,focus,high,and,重点业务词
+company,凯赛生物,生产基地,focus,high,and,重点变化词
+company,凯赛生物,扩产,focus,high,and,重点变化词
+company,蓝晶微生物,蓝晶微生物,alias,high,and,公司识别
+company,蓝晶微生物,蓝晶,alias,medium,and,公司识别
+company,蓝晶微生物,Bluepha,alias,high,and,公司识别
+company,蓝晶微生物,上海蓝晶微生物,alias,medium,and,公司识别
+company,蓝晶微生物,PHA,focus,high,and,重点业务词
+company,蓝晶微生物,生物降解材料,focus,high,and,重点业务词
+company,蓝晶微生物,平台,focus,medium,and,重点业务词
+company,蓝晶微生物,量产,focus,high,and,重点变化词
+company,蓝晶微生物,合作,focus,high,and,重点变化词
+company,蓝晶微生物,超级工厂,focus,high,and,重点变化词
+company,川宁生物,川宁生物,alias,high,and,公司识别
+company,川宁生物,伊犁川宁生物,alias,medium,and,公司识别
+company,川宁生物,川宁,alias,medium,and,公司识别
+company,川宁生物,KLCNSW,alias,medium,and,公司识别
+company,川宁生物,生物发酵,focus,high,and,重点业务词
+company,川宁生物,合成生物,focus,high,and,重点业务词
+company,川宁生物,保健品原料,focus,medium,and,重点业务词
+company,川宁生物,生物农药,focus,medium,and,重点业务词
+company,川宁生物,可降解材料,focus,medium,and,重点业务词
+company,川宁生物,公告,focus,high,and,重点变化词
+company,恩和生物 Bota Bio,恩和生物,alias,high,and,公司识别
+company,恩和生物 Bota Bio,Bota Bio,alias,high,and,公司识别
+company,恩和生物 Bota Bio,Bota,alias,medium,and,公司识别
+company,恩和生物 Bota Bio,杭州恩和生物,alias,medium,and,公司识别
+company,恩和生物 Bota Bio,protein,focus,high,and,重点业务词
+company,恩和生物 Bota Bio,performance protein,focus,medium,and,重点业务词
+company,恩和生物 Bota Bio,biofoundry,focus,high,and,重点业务词
+company,恩和生物 Bota Bio,fermentation,focus,high,and,重点业务词
+company,恩和生物 Bota Bio,pilot plant,focus,high,and,重点变化词
+company,恩和生物 Bota Bio,manufacturing,focus,high,and,重点变化词
+company,恩和生物 Bota Bio,partnership,focus,high,and,重点变化词
+company,恩和生物 Bota Bio,enzyme,focus,medium,and,重点业务词
+company,CellX,CellX,alias,high,and,公司识别
+company,CellX,食未科技,alias,high,and,公司识别
+company,CellX,CellX 食未科技,alias,medium,and,公司识别
+company,CellX,发酵蛋白,focus,high,and,重点业务词
+company,CellX,培养肉,focus,high,and,重点业务词
+company,CellX,新蛋白,focus,high,and,重点业务词
+company,CellX,中试工厂,focus,high,and,重点变化词
+company,CellX,量产,focus,high,and,重点变化词
+company,CellX,战略合作,focus,high,and,重点变化词
+company,CellX,融资,focus,high,and,重点变化词
+company,CellX,职位,focus,medium,and,重点变化词

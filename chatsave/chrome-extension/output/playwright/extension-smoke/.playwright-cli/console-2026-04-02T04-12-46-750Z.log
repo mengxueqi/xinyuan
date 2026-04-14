@@ -1,0 +1,16 @@
+[   21999ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://chatgpt.com/backend-anon/sentinel/chat-requirements/prepare:0
+[   22000ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://chatgpt.com/backend-anon/conversation/init:0
+[   22054ms] RequestError: Something went wrong. If this issue persists please contact us through our help center at help.openai.com.
+    at _4 (https://chatgpt.com/cdn/assets/4813494d-jo77lyb04d4urack.js:3:84209)
+    at async G0.fetch (https://chatgpt.com/cdn/assets/4813494d-jo77lyb04d4urack.js:3:84629)
+    at async https://chatgpt.com/cdn/assets/1a7ebd5f-hmgv3trwun4j1cwd.js:8:156871
+[   22057ms] RequestError: Something went wrong. If this issue persists please contact us through our help center at help.openai.com.
+    at _4 (https://chatgpt.com/cdn/assets/4813494d-jo77lyb04d4urack.js:3:84209)
+    at async G0.fetch (https://chatgpt.com/cdn/assets/4813494d-jo77lyb04d4urack.js:3:84629)
+    at async https://chatgpt.com/cdn/assets/1a7ebd5f-hmgv3trwun4j1cwd.js:8:156871
+[   22572ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://chatgpt.com/favicon.ico:0
+[   22862ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://chatgpt.com/backend-anon/accounts/passkey/challenge:0
+[   24892ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://chatgpt.com/backend-anon/checkout_pricing_config/countries:0
+[   33805ms] [WARNING] [GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment @ https://accounts.google.com/gsi/client:80
+[   33835ms] [ERROR] Not signed in with the identity provider. @ https://chatgpt.com/:0
+[   41132ms] [ERROR] [GSI_LOGGER]: FedCM get() rejects with NetworkError: Error retrieving a token. @ https://chatgpt.com/cdn/assets/2340486e-l27h072476k5h6bt.js:65

@@ -1,0 +1,17 @@
+{
+  "browser": {
+    "launchOptions": {
+      "headless": false,
+      "args": [
+        "--disable-extensions-except=D:/codex/chatsave/chrome-extension",
+        "--load-extension=D:/codex/chatsave/chrome-extension"
+      ]
+    },
+    "contextOptions": {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      }
+    }
+  }
+}
