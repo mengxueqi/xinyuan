@@ -1,5 +1,40 @@
+# Virtual environments
 .venv/
-xinyuan/data/logs/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local editor state
+.DS_Store
+Thumbs.db
+
+# Runtime logs
 *.log
-xinyuan/data/logs/
-*.log
+data/logs/
+
+# Local databases and generated state
+data/business/*.db
+
+# Generated pipeline artifacts
+data/raw/**
+data/processed/**
+data/changes/**
+data/insights/**
+data/reports/daily/**
+
+# Keep documentation placeholders under data/
+!data/raw/
+!data/raw/README.md
+!data/processed/
+!data/processed/README.md
+!data/changes/
+!data/changes/README.md
+!data/insights/
+!data/insights/README.md
+!data/reports/
+!data/reports/README.md
+!data/business/
+!data/business/README.md
