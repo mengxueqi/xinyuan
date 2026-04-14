@@ -1,3 +1,5 @@
 .venv/
 xinyuan/data/logs/
 *.log
+xinyuan/data/logs/
+*.log
