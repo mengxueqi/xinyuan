@@ -1,0 +1,13 @@
+name: xinyuan
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - APScheduler==3.11.0
+      - tzlocal==5.3.1
+      - beautifulsoup4==4.13.4
+      - feedparser==6.0.11
+      - requests==2.32.3
+      - streamlit==1.44.1
