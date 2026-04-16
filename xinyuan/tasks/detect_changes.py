@@ -74,6 +74,7 @@ def detect_changes(batch_keys: list[str] | None = None, logger=None) -> dict[str
 
     for batch_key in target_batch_keys:
         previous_batch_key = get_previous_batch_key(available_batch_keys, batch_key)
+        previous_event_batch_key = get_previous_batch_key(sorted(event_batches.keys()), batch_key)
         if not previous_batch_key:
             logger.info("Change detection skipped compare | batch=%s | reason=no_previous_batch", batch_key)
             counts = change_storage.write_batch(batch_key, [], run_started_at)
@@ -81,11 +82,20 @@ def detect_changes(batch_keys: list[str] | None = None, logger=None) -> dict[str
             continue
 
         changes = []
+        previous_known_sources = {
+            (
+                row.get("company_name", "Unknown"),
+                row.get("source_name", ""),
+            )
+            for row in event_batches.get(previous_event_batch_key or previous_batch_key, [])
+            if row.get("source_name")
+        }
         changes.extend(
             detect_new_events(
                 batch_key,
                 event_batches.get(batch_key, []),
-                event_batches.get(previous_batch_key, []),
+                event_batches.get(previous_event_batch_key or previous_batch_key, []),
+                previous_known_sources=previous_known_sources,
             )
         )
         changes.extend(

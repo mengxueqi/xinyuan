@@ -4,9 +4,9 @@ import json
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from processors.base import ProcessedDocument
-from utils import make_batch_key
 
 
 class LocalProcessedStorage:
@@ -35,6 +35,7 @@ class LocalProcessedStorage:
         clean_rows = [asdict(document) for document in documents]
         for row in clean_rows:
             row["batch_key"] = batch_key
+
         event_rows = [
             {
                 "batch_key": batch_key,
@@ -43,6 +44,7 @@ class LocalProcessedStorage:
                 "source_type": document.source_type,
                 "url": document.url,
                 "title": document.title,
+                "content_text": document.normalized_text[:4000],
                 "event_types": document.event_types,
                 "tech_signals": document.tech_signals,
                 "matched_companies": document.matched_companies,
@@ -61,9 +63,7 @@ class LocalProcessedStorage:
         ]
 
         self._write_jsonl(self.clean_documents_dir / f"{batch_key}.jsonl", clean_rows)
-        self._write_jsonl(
-            self.event_candidates_dir / f"{batch_key}.jsonl", event_rows
-        )
+        self._write_jsonl(self.event_candidates_dir / f"{batch_key}.jsonl", event_rows)
         self._write_jsonl(
             self.processing_runs_dir / f"{batch_key}.jsonl",
             [
@@ -99,49 +99,42 @@ class LocalProcessedStorage:
     def _is_message_like_event(document: ProcessedDocument) -> bool:
         if document.source_type == "rss":
             return True
+        if document.source_type != "web":
+            return False
 
-        source_name = (document.source_name or "").lower()
-        parser_type = str(document.metadata.get("parser_type", "")).lower()
         item_kind = str(document.metadata.get("item_kind", "")).lower()
-        title = (document.title or "").lower()
+        if item_kind != "article_link":
+            return False
 
-        message_hints = (
-            "news",
-            "press",
-            "blog",
-            "update",
-            "release",
-            "announcement",
-            "新闻",
-            "公告",
-            "动态",
-            "资讯",
-        )
+        source_page_url = str(document.metadata.get("source_page_url", ""))
+        if source_page_url and document.url:
+            source_parts = urlparse(source_page_url)
+            target_parts = urlparse(document.url)
+            if source_parts.netloc and target_parts.netloc:
+                if source_parts.netloc != target_parts.netloc:
+                    return False
+                if target_parts.fragment and target_parts.path == source_parts.path:
+                    return False
 
-        snapshot_hints = (
-            "官网首页",
-            "关于我们页",
-            "招聘页",
-            "职位页",
-            "投资者关系页",
-            "jobs snapshot",
-        )
+            if not document.published_at:
+                path_blob = " ".join(
+                    part.lower()
+                    for part in (target_parts.path, target_parts.query)
+                    if part
+                )
+                message_path_hints = (
+                    "news",
+                    "notice",
+                    "announcement",
+                    "press",
+                    "blog",
+                    "article",
+                    "show",
+                    "env_news",
+                    "newsxq",
+                    "investor",
+                )
+                if not any(hint in path_blob for hint in message_path_hints):
+                    return False
 
-        if document.source_type == "jobs":
-            return False
-        if item_kind == "page_snapshot":
-            return False
-        if parser_type in {
-            "rss_feed",
-            "news_page",
-            "news_list",
-            "news_hub_page",
-            "ir_page",
-            "notice_hub_page",
-        }:
-            return True
-        if any(hint in document.source_name for hint in snapshot_hints):
-            return False
-        if "snapshot" in title:
-            return False
-        return any(hint in source_name for hint in message_hints)
+        return True

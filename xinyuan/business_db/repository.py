@@ -66,6 +66,7 @@ class BusinessDatabase:
                     source_type TEXT,
                     url TEXT,
                     title TEXT,
+                    content_text TEXT,
                     event_types_json TEXT,
                     tech_signals_json TEXT,
                     matched_companies_json TEXT,
@@ -181,6 +182,7 @@ class BusinessDatabase:
                 ON task_runs(stage_name);
                 """
             )
+            self._ensure_column(connection, "events", "content_text", "TEXT")
 
     def seed_companies(self, csv_path: Path) -> int:
         with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -264,6 +266,7 @@ class BusinessDatabase:
                 "source_type",
                 "url",
                 "title",
+                "content_text",
                 "event_types_json",
                 "tech_signals_json",
                 "matched_companies_json",
@@ -277,6 +280,7 @@ class BusinessDatabase:
             update_columns=(
                 "company_name",
                 "source_type",
+                "content_text",
                 "event_types_json",
                 "tech_signals_json",
                 "matched_companies_json",
@@ -299,6 +303,7 @@ class BusinessDatabase:
                 "source_type",
                 "url",
                 "title",
+                "content_text",
                 "event_types_json",
                 "tech_signals_json",
                 "matched_companies_json",
@@ -312,6 +317,7 @@ class BusinessDatabase:
             update_columns=(
                 "company_name",
                 "source_type",
+                "content_text",
                 "event_types_json",
                 "tech_signals_json",
                 "matched_companies_json",
@@ -568,7 +574,7 @@ class BusinessDatabase:
         limit: int = 100,
     ) -> list[dict]:
         query = """
-            SELECT batch_date, company_name, source_name, source_type, url, title,
+            SELECT batch_date, company_name, source_name, source_type, url, title, content_text,
                    event_types_json, tech_signals_json, matched_companies_json,
                    matched_focus_keywords_json, is_duplicate, published_at, fetched_at
             FROM events
@@ -582,6 +588,46 @@ class BusinessDatabase:
             query += " AND batch_date LIKE ?"
             params.append(f"{date_prefix}%")
         query += " ORDER BY fetched_at DESC, batch_date DESC LIMIT ?"
+        params.append(limit)
+
+        with self.connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def search_events(
+        self,
+        keyword: str,
+        company_name: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        query = """
+            SELECT batch_date, company_name, source_name, source_type, url, title, content_text,
+                   event_types_json, tech_signals_json, matched_companies_json,
+                   matched_focus_keywords_json, is_duplicate, published_at, fetched_at
+            FROM events
+            WHERE company_name IN (SELECT company_name FROM companies)
+        """
+        params: list[object] = []
+
+        if company_name and company_name != "All":
+            query += " AND company_name = ?"
+            params.append(company_name)
+
+        for term in self._split_keywords(keyword):
+            query += """
+                AND (
+                    title LIKE ?
+                    OR content_text LIKE ?
+                    OR url LIKE ?
+                    OR source_name LIKE ?
+                    OR company_name LIKE ?
+                    OR event_types_json LIKE ?
+                )
+            """
+            like_value = f"%{term}%"
+            params.extend([like_value, like_value, like_value, like_value, like_value, like_value])
+
+        query += " ORDER BY COALESCE(published_at, fetched_at) DESC, batch_date DESC LIMIT ?"
         params.append(limit)
 
         with self.connect() as connection:
@@ -678,7 +724,7 @@ class BusinessDatabase:
         with self.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT batch_date, company_name, source_name, source_type, url, title,
+                SELECT batch_date, company_name, source_name, source_type, url, title, content_text,
                        event_types_json, tech_signals_json, matched_companies_json,
                        matched_focus_keywords_json, is_duplicate, published_at, fetched_at
                 FROM events
@@ -847,6 +893,7 @@ class BusinessDatabase:
                     "source_type": row.get("source_type", ""),
                     "url": row.get("url", ""),
                     "title": row.get("title", ""),
+                    "content_text": row.get("content_text", ""),
                     "event_types_json": json.dumps(row.get("event_types", []), ensure_ascii=False),
                     "tech_signals_json": json.dumps(row.get("tech_signals", []), ensure_ascii=False),
                     "matched_companies_json": json.dumps(row.get("matched_companies", []), ensure_ascii=False),
@@ -927,3 +974,26 @@ class BusinessDatabase:
         if company_name == "行业通用":
             return ""
         return company_name
+
+    @staticmethod
+    def _split_keywords(keyword: str) -> list[str]:
+        import re
+
+        text = (keyword or "").strip()
+        if not text:
+            return []
+
+        parts = re.findall(r'"([^"]+)"|“([^”]+)”|\'([^\']+)\'|([^,\s，]+)', text)
+        terms = []
+        for part in parts:
+            term = next((item for item in part if item), "").strip()
+            if term:
+                terms.append(term)
+        return terms
+
+    @staticmethod
+    def _ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, column_def: str) -> None:
+        rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        existing_columns = {row[1] for row in rows}
+        if column_name not in existing_columns:
+            connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")

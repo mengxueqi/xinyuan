@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from datetime import date
+
 from detectors.base import ChangeRecord
+
+
+MAX_EVENT_AGE_DAYS = 7
 
 
 def detect_new_events(
     current_batch_date: str,
     current_events: list[dict],
     previous_events: list[dict],
+    previous_known_sources: set[tuple[str, str]] | None = None,
 ) -> list[ChangeRecord]:
+    previous_known_sources = previous_known_sources or set()
     previous_keys = {
         _event_key(event)
         for event in previous_events
@@ -18,10 +25,18 @@ def detect_new_events(
         key = _event_key(event)
         if key in previous_keys:
             continue
+        if _is_stale_event(event, current_batch_date):
+            continue
 
         company_name = event.get("company_name") or ", ".join(
             event.get("matched_companies", [])
         )
+        source_key = (
+            company_name or "Unknown",
+            event.get("source_name", ""),
+        )
+        if previous_known_sources and source_key not in previous_known_sources:
+            continue
         changes.append(
             ChangeRecord(
                 company_name=company_name or "Unknown",
@@ -45,6 +60,26 @@ def detect_new_events(
         )
 
     return changes
+
+
+def _is_stale_event(event: dict, current_batch_date: str) -> bool:
+    published_at = _parse_date(event.get("published_at"))
+    batch_date = _parse_date(current_batch_date)
+    if not published_at or not batch_date:
+        return False
+    return (batch_date - published_at).days > MAX_EVENT_AGE_DAYS
+
+
+def _parse_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    text = str(value).strip()
+    if len(text) >= 10:
+        text = text[:10]
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 def _event_key(event: dict) -> tuple[str, str, str]:

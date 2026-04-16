@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from pathlib import Path
+import re
 
 import streamlit as st
 
@@ -16,11 +17,16 @@ from tasks.pipeline import (
     run_sync_business_db_now,
 )
 from utils import format_company_display
+from utils import select_focus_events
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 BUSINESS_DB_PATH = PROJECT_ROOT / "data" / "business" / "xinyuan.db"
 REPORTS_DIR = PROJECT_ROOT / "data" / "reports" / "daily"
+FOCUS_EVENT_TYPES = {"product", "financing", "capacity", "ip"}
+FOCUS_EVENT_LIMIT = 20
+FOCUS_EVENT_MAX_PER_COMPANY = 6
+FOCUS_EVENT_MAX_AGE_DAYS = 7
 
 
 def get_database() -> BusinessDatabase:
@@ -31,7 +37,7 @@ def get_database() -> BusinessDatabase:
 
 def get_table_counts() -> dict[str, int]:
     database = get_database()
-    counts = database.fetch_daily_counts(date.today())
+    daily_counts = database.fetch_daily_counts(date.today())
     if not BUSINESS_DB_PATH.exists():
         return {
             "companies": 0,
@@ -41,6 +47,7 @@ def get_table_counts() -> dict[str, int]:
             "insight_items": 0,
             "report_runs": 0,
             "task_runs": 0,
+            "today_events": 0,
         }
 
     import sqlite3
@@ -48,14 +55,23 @@ def get_table_counts() -> dict[str, int]:
     connection = sqlite3.connect(BUSINESS_DB_PATH)
     try:
         cursor = connection.cursor()
-        tables = ["companies", "sources", "events", "change_logs", "insight_items", "report_runs", "task_runs"]
-        base_counts = {
+        tables = [
+            "companies",
+            "sources",
+            "events",
+            "change_logs",
+            "insight_items",
+            "report_runs",
+            "task_runs",
+        ]
+        counts = {
             table: cursor.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in tables
         }
     finally:
         connection.close()
-    return base_counts | {"today_events": counts.get("events", 0)}
+
+    return counts | {"today_events": daily_counts.get("events", 0)}
 
 
 def get_report_files() -> list[Path]:
@@ -64,31 +80,132 @@ def get_report_files() -> list[Path]:
     return sorted(REPORTS_DIR.glob("*.md"), reverse=True)
 
 
-def render_sidebar() -> None:
-    st.sidebar.header("Actions")
-    st.sidebar.caption("Scheduled runs are handled by `scheduler.py`. Use the buttons below for immediate manual runs.")
+def parse_report_date(report_name: str) -> date | None:
+    try:
+        return date.fromisoformat(Path(report_name).stem)
+    except ValueError:
+        return None
 
-    if st.sidebar.button("Run Full Pipeline Now", use_container_width=True):
+
+def parse_covered_date(report_content: str) -> date | None:
+    match = re.search(r"^- Covered Date:\s*(\d{4}-\d{2}-\d{2})\s*$", report_content, re.MULTILINE)
+    if not match:
+        return None
+    try:
+        return date.fromisoformat(match.group(1))
+    except ValueError:
+        return None
+
+
+def parse_report_markdown(report_name: str, report_content: str) -> dict:
+    generated_date = parse_report_date(report_name)
+    covered_date = parse_covered_date(report_content) or generated_date
+
+    sections: dict[str, list[str]] = {}
+    current_section: str | None = None
+    for raw_line in report_content.splitlines():
+        line = raw_line.rstrip()
+        if line.startswith("## "):
+            current_section = line[3:].strip()
+            sections[current_section] = []
+            continue
+        if current_section:
+            sections[current_section].append(line)
+
+    overview_lines = sections.get("Overview", [])
+    overview = {
+        "focus_events": 0,
+        "change_logs": 0,
+        "insight_items": 0,
+    }
+    for line in overview_lines:
+        if "Focus events:" in line:
+            overview["focus_events"] = _extract_trailing_int(line)
+        elif "Event candidates:" in line:
+            overview["focus_events"] = _extract_trailing_int(line)
+        elif "Change logs:" in line:
+            overview["change_logs"] = _extract_trailing_int(line)
+        elif "Insight items:" in line or "Analysis items:" in line:
+            overview["insight_items"] = _extract_trailing_int(line)
+
+    return {
+        "generated_date": generated_date,
+        "covered_date": covered_date,
+        "overview": overview,
+        "analysis": parse_report_items(sections.get("Analysis", []) or sections.get("Top Insights", [])),
+        "change_logs": parse_report_items(sections.get("Change Logs", [])),
+        "focus_events": parse_report_items(
+            sections.get("Focus Events", []) or sections.get("Event Candidates", [])
+        ),
+    }
+
+
+def _extract_trailing_int(line: str) -> int:
+    match = re.search(r"(\d+)\s*$", line)
+    return int(match.group(1)) if match else 0
+
+
+def parse_report_items(lines: list[str]) -> list[dict]:
+    items: list[dict] = []
+    current: dict | None = None
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if re.match(r"^\d+\.\s", line) or line.startswith("- "):
+            if current:
+                items.append(current)
+            text = re.sub(r"^\d+\.\s*", "", line)
+            text = re.sub(r"^-+\s*", "", text)
+            current = {"text": text, "url": None, "score": None, "reason": None, "types": None}
+            continue
+
+        if current is None:
+            continue
+
+        if line.startswith("- URL:"):
+            current["url"] = line.replace("- URL:", "", 1).strip()
+        elif line.startswith("- Score:"):
+            current["score"] = line.replace("- Score:", "", 1).strip()
+        elif line.startswith("- Reason:"):
+            current["reason"] = line.replace("- Reason:", "", 1).strip()
+        elif line.startswith("- Types:"):
+            current["types"] = line.replace("- Types:", "", 1).strip()
+        else:
+            current["text"] = f"{current['text']} {line}".strip()
+
+    if current:
+        items.append(current)
+    return items
+
+
+def render_sidebar() -> None:
+    st.sidebar.header("Run Now")
+    st.sidebar.caption("Scheduled runs are still handled by `scheduler.py`. Use these buttons for manual runs.")
+
+    if st.sidebar.button("Run Full Pipeline", use_container_width=True):
         with st.spinner("Running full pipeline..."):
             st.session_state["last_log"] = run_full_pipeline_now()
 
-    if st.sidebar.button("Run Crawl Only", use_container_width=True):
+    if st.sidebar.button("Run Crawl", use_container_width=True):
         with st.spinner("Running crawl..."):
             st.session_state["last_log"] = run_crawl_now()
 
-    if st.sidebar.button("Run Process Only", use_container_width=True):
+    if st.sidebar.button("Run Process", use_container_width=True):
         with st.spinner("Running processing..."):
             st.session_state["last_log"] = run_process_now()
 
-    if st.sidebar.button("Run Change Detection Only", use_container_width=True):
+    if st.sidebar.button("Run Change Detection", use_container_width=True):
         with st.spinner("Running change detection..."):
             st.session_state["last_log"] = run_detect_changes_now()
 
-    if st.sidebar.button("Run Insight Build Only", use_container_width=True):
+    if st.sidebar.button("Run Insight Build", use_container_width=True):
         with st.spinner("Building insights..."):
             st.session_state["last_log"] = run_build_insights_now()
 
-    if st.sidebar.button("Sync Business DB Only", use_container_width=True):
+    if st.sidebar.button("Sync Business DB", use_container_width=True):
         with st.spinner("Syncing business database..."):
             st.session_state["last_log"] = run_sync_business_db_now()
 
@@ -100,7 +217,7 @@ def render_overview(counts: dict[str, int]) -> None:
         ("Sources", counts["sources"]),
         ("Events", counts["events"]),
         ("Changes", counts["change_logs"]),
-        ("Insights", counts["insight_items"]),
+        ("Analysis", counts["insight_items"]),
         ("Reports", counts["report_runs"]),
         ("Task Runs", counts["task_runs"]),
     ]
@@ -131,128 +248,270 @@ def build_dataframe_rows(records: list[dict], keys: list[str]) -> list[dict]:
     return rows
 
 
-def render_data_views(database: BusinessDatabase) -> None:
-    st.subheader("Dashboard")
-    companies = ["All"] + database.list_companies()
-    filters = st.columns([1, 1, 1])
-    selected_company = filters[0].selectbox("Company", companies, index=0)
-    selected_date = filters[1].date_input(
-        "Date filter",
-        value=date.today(),
-        help="Use a date prefix to inspect a specific day of batches.",
+def render_dataframe_with_links(records: list[dict], keys: list[str]) -> None:
+    column_config = None
+    if "url" in keys:
+        column_config = {
+            "url": st.column_config.LinkColumn(
+                "url",
+                display_text="Open link",
+            )
+        }
+
+    st.dataframe(
+        build_dataframe_rows(records, keys),
+        use_container_width=True,
+        hide_index=True,
+        column_config=column_config,
     )
-    limit = filters[2].slider("Rows", min_value=10, max_value=200, value=50, step=10)
 
-    date_prefix = selected_date.isoformat() if selected_date else None
-    events = database.fetch_recent_events(selected_company, date_prefix, limit)
-    changes = database.fetch_recent_changes(selected_company, date_prefix, limit)
-    insights = database.fetch_recent_insights(selected_company, date_prefix, limit)
 
-    tabs = st.tabs(["Insights", "Changes", "Events"])
+def get_dashboard_filters(database: BusinessDatabase) -> tuple[str, str | None, int]:
+    companies = ["All"] + database.list_companies()
+    columns = st.columns([1, 1, 1])
+    selected_company = columns[0].selectbox("Company", companies, index=0)
+    selected_date = columns[1].date_input(
+        "Date",
+        value=date.today(),
+        help="Filter by batch date prefix.",
+        key="dashboard_date",
+    )
+    row_limit = columns[2].slider("Rows", min_value=10, max_value=200, value=50, step=10)
+    return selected_company, selected_date.isoformat() if selected_date else None, row_limit
 
-    with tabs[0]:
-        st.caption("Scored and summarized monitoring output.")
-        st.dataframe(
-            build_dataframe_rows(
-                insights,
-                [
-                    "batch_date",
-                    "company_name",
-                    "priority_label",
-                    "importance_score",
-                    "summary",
-                    "reason",
-                    "url",
-                ],
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
 
-    with tabs[1]:
-        st.caption("Detected changes between batches.")
-        st.dataframe(
-            build_dataframe_rows(
-                changes,
-                [
-                    "batch_date",
-                    "company_name",
-                    "change_type",
-                    "importance_score",
-                    "summary",
-                    "changed_ratio",
-                    "url",
-                ],
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-    with tabs[2]:
-        st.caption("Processed event candidates synced into the business database.")
-        st.dataframe(
-            build_dataframe_rows(
-                events,
-                [
-                    "batch_date",
-                    "company_name",
-                    "source_name",
-                    "title",
-                    "event_types_json",
-                    "tech_signals_json",
-                    "url",
-                ],
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
+def parse_iso_date(value) -> date | None:
+    if not value:
+        return None
+    text = str(value).strip()
+    if len(text) >= 10:
+        text = text[:10]
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 def render_reports_panel() -> None:
-    st.subheader("Reports")
     report_files = get_report_files()
     if report_files:
+        database = get_database()
         selected_report_name = st.selectbox(
-            "Select a report",
+            "Select report",
             options=[report_file.name for report_file in report_files],
+            key="report_selector",
         )
         selected_report = REPORTS_DIR / selected_report_name
-        st.markdown(selected_report.read_text(encoding="utf-8"))
+        report_content = selected_report.read_text(encoding="utf-8")
+        report_data = parse_report_markdown(selected_report_name, report_content)
+        generated_date = report_data["generated_date"]
+        covered_date = report_data["covered_date"]
+        overview = report_data["overview"]
+
+        live_counts = (
+            database.fetch_daily_counts(covered_date)
+            if covered_date
+            else {"events": 0, "change_logs": 0, "insight_items": 0}
+        )
+        live_events = (
+            database.fetch_daily_events(covered_date, limit=200)
+            if covered_date
+            else []
+        )
+        focus_events = select_focus_events(
+            live_events,
+            FOCUS_EVENT_TYPES,
+            reference_date=covered_date,
+            max_items=FOCUS_EVENT_LIMIT,
+            max_per_company=FOCUS_EVENT_MAX_PER_COMPANY,
+            max_age_days=FOCUS_EVENT_MAX_AGE_DAYS,
+        )
+
+        with st.container(border=True):
+            st.subheader("Overview")
+            if generated_date and covered_date:
+                st.caption(
+                    f"Generated Date: {generated_date.isoformat()} | Covered Date: {covered_date.isoformat()}"
+                )
+            overview_cols = st.columns(3)
+            overview_cols[0].metric("Focus Events", len(focus_events))
+            overview_cols[1].metric("Change Logs", live_counts.get("change_logs", overview.get("change_logs", 0)))
+            overview_cols[2].metric("Analysis", live_counts.get("insight_items", overview.get("insight_items", 0)))
+
+        with st.container(border=True):
+            st.subheader("Focus Events")
+            if focus_events:
+                for event in focus_events:
+                    company_display = format_company_display(
+                        event.get("company_name"),
+                        event.get("matched_companies_json", []),
+                    )
+                    title = event.get("title") or "(untitled event)"
+                    event_types = event.get("event_types_json") or []
+                    st.markdown(f"**[{company_display}] {title}**")
+                    if event_types:
+                        st.caption(f"Types: {', '.join(event_types)}")
+                    if event.get("published_at"):
+                        st.caption(f"Published: {event['published_at']}")
+                    if event.get("url"):
+                        st.markdown(f"[Open link]({event['url']})")
+            else:
+                st.write("No focus events were found for this date.")
     else:
         st.info("No reports generated yet.")
 
 
-def render_task_runs(database: BusinessDatabase) -> None:
-    st.subheader("Recent Pipeline Status")
-    records = database.fetch_recent_task_runs(limit=20)
-    if not records:
-        st.info("No task runs recorded yet.")
+def render_manual_report_panel() -> None:
+    selected_date = st.date_input(
+        "Covered date",
+        value=date.today() - timedelta(days=1),
+        key="manual_report_date",
+    )
+    if st.button("Generate Daily Report", use_container_width=True):
+        with st.spinner("Generating report..."):
+            st.session_state["last_log"] = run_daily_report_now(selected_date)
+    st.caption(
+        "The file is named with today's date. The selected date is used as the covered data date."
+    )
+
+
+def render_event_query_panel(database: BusinessDatabase) -> None:
+    st.caption(
+        "Search the raw event library directly from `events`, including title and content text. "
+        "Multiple keywords use AND logic, and quoted phrases are treated as exact matches."
+    )
+    controls = st.columns([2, 1, 1])
+    keyword = controls[0].text_input(
+        "Keywords",
+        value=st.session_state.get("event_query_keyword", ""),
+        key="event_query_keyword",
+        placeholder='e.g. partnership loreal or "pilot plant" enzyme',
+    ).strip()
+    companies = ["All"] + database.list_companies()
+    selected_company = controls[1].selectbox("Company", companies, index=0, key="event_query_company")
+    row_limit = controls[2].slider("Rows", min_value=10, max_value=200, value=50, step=10, key="event_query_limit")
+
+    if not keyword:
+        st.info("Enter a keyword to search the raw event library.")
         return
 
-    st.dataframe(
-        build_dataframe_rows(
-            records,
-            [
-                "batch_key",
-                "stage_name",
-                "status",
-                "started_at",
-                "finished_at",
-                "message",
-                "error_text",
-            ],
-        ),
-        use_container_width=True,
-        hide_index=True,
+    results = database.search_events(keyword, selected_company, row_limit)
+    st.caption(f"Matched {len(results)} raw events.")
+    display_rows = []
+    for row in results:
+        display_row = dict(row)
+        content_text = str(display_row.get("content_text") or "")
+        display_row["content_preview"] = (
+            f"{content_text[:280]}..." if len(content_text) > 280 else content_text
+        )
+        display_rows.append(display_row)
+    render_dataframe_with_links(
+        display_rows,
+        [
+            "published_at",
+            "batch_date",
+            "company_name",
+            "source_name",
+            "title",
+            "content_preview",
+            "event_types_json",
+            "url",
+        ],
     )
+
+
+def render_dashboard(database: BusinessDatabase) -> None:
+    selected_company, date_prefix, row_limit = get_dashboard_filters(database)
+    selected_date = parse_iso_date(date_prefix)
+
+    events = database.fetch_recent_events(selected_company, date_prefix, row_limit)
+    changes = database.fetch_recent_changes(selected_company, date_prefix, row_limit)
+    analysis = database.fetch_recent_insights(selected_company, date_prefix, row_limit)
+    focus_events = select_focus_events(
+        events,
+        FOCUS_EVENT_TYPES,
+        reference_date=selected_date,
+        max_items=FOCUS_EVENT_LIMIT,
+        max_per_company=FOCUS_EVENT_MAX_PER_COMPANY,
+        max_age_days=FOCUS_EVENT_MAX_AGE_DAYS,
+    )
+
+    tabs = st.tabs(["Change Logs", "Analysis", "Focus Events"])
+
+    with tabs[0]:
+        st.caption("Detected differences between adjacent batches.")
+        render_dataframe_with_links(
+            changes,
+            [
+                "batch_date",
+                "company_name",
+                "change_type",
+                "importance_score",
+                "summary",
+                "changed_ratio",
+                "url",
+            ],
+        )
+
+    with tabs[1]:
+        st.caption("Scored and summarized intelligence output.")
+        render_dataframe_with_links(
+            analysis,
+            [
+                "batch_date",
+                "company_name",
+                "priority_label",
+                "importance_score",
+                "summary",
+                "reason",
+                "url",
+            ],
+        )
+
+    with tabs[2]:
+        st.caption("Current logic: product, financing, capacity, and IP-related items. Maximum 20 rows, up to 6 per company, with type diversity preferred.")
+        render_dataframe_with_links(
+            focus_events,
+            [
+                "batch_date",
+                "company_name",
+                "source_name",
+                "title",
+                "event_types_json",
+                "url",
+            ],
+        )
+
+    with st.expander("Advanced Info", expanded=False):
+        st.caption("Execution Log")
+        st.code(st.session_state.get("last_log", "No manual run yet."), language="text")
+        st.caption("Recent Pipeline Status")
+        task_runs = database.fetch_recent_task_runs(limit=20)
+        if task_runs:
+            st.dataframe(
+                build_dataframe_rows(
+                    task_runs,
+                    [
+                        "batch_key",
+                        "stage_name",
+                        "status",
+                        "started_at",
+                        "finished_at",
+                        "message",
+                        "error_text",
+                    ],
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.info("No task runs recorded yet.")
 
 
 def main() -> None:
     st.set_page_config(page_title="Xinyuan Monitor", layout="wide")
     st.title("Xinyuan Biomanufacturing Monitor")
-    st.caption(
-        "Use scheduled jobs for routine runs, and the buttons below for immediate manual runs."
-    )
+    st.caption("Reports first, dashboard second, operational details hidden unless needed.")
 
     render_sidebar()
 
@@ -260,27 +519,19 @@ def main() -> None:
     database = get_database()
     render_overview(counts)
 
-    left, right = st.columns([1.2, 1])
+    main_tabs = st.tabs(["Report", "Manual Report", "Dashboard", "Event Query"])
 
-    with left:
-        st.subheader("Manual Report")
-        selected_date = st.date_input(
-            "Generate report for date",
-            value=date.today() - timedelta(days=1),
-        )
-        if st.button("Generate Report For Selected Date", use_container_width=True):
-            with st.spinner("Generating report..."):
-                st.session_state["last_log"] = run_daily_report_now(selected_date)
-
-        st.subheader("Execution Log")
-        st.code(st.session_state.get("last_log", "No manual run yet."), language="text")
-        render_task_runs(database)
-
-    with right:
+    with main_tabs[0]:
         render_reports_panel()
 
-    st.divider()
-    render_data_views(database)
+    with main_tabs[1]:
+        render_manual_report_panel()
+
+    with main_tabs[2]:
+        render_dashboard(database)
+
+    with main_tabs[3]:
+        render_event_query_panel(database)
 
 
 if __name__ == "__main__":
