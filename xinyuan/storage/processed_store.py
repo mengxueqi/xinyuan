@@ -10,6 +10,13 @@ from processors.base import ProcessedDocument
 
 
 class LocalProcessedStorage:
+    INVALID_EVENT_TITLES = {
+        "读取中,请稍候",
+        "读取中，请稍候",
+        "您的位置：",
+        "沪深京A股公告",
+    }
+
     def __init__(self, root_dir: Path) -> None:
         self.root_dir = root_dir
         self.clean_documents_dir = self.root_dir / "clean_documents"
@@ -55,10 +62,12 @@ class LocalProcessedStorage:
             }
             for document in documents
             if (
-                document.event_types
-                and not document.is_duplicate
+                not document.is_duplicate
                 and document.matched_companies
-                and self._is_message_like_event(document)
+                and (
+                    self._is_message_like_event(document)
+                    or self._is_event_library_only_source(document)
+                )
             )
         ]
 
@@ -97,6 +106,9 @@ class LocalProcessedStorage:
 
     @staticmethod
     def _is_message_like_event(document: ProcessedDocument) -> bool:
+        title = (document.title or "").strip()
+        if title in LocalProcessedStorage.INVALID_EVENT_TITLES or title.startswith("您的位置"):
+            return False
         if document.source_type == "rss":
             return True
         if document.source_type != "web":
@@ -133,8 +145,14 @@ class LocalProcessedStorage:
                     "env_news",
                     "newsxq",
                     "investor",
+                    "detail",
                 )
                 if not any(hint in path_blob for hint in message_path_hints):
                     return False
 
         return True
+
+    @staticmethod
+    def _is_event_library_only_source(document: ProcessedDocument) -> bool:
+        parser_type = str(document.metadata.get("parser_type", "")).lower()
+        return parser_type == "product_page"

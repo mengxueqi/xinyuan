@@ -12,7 +12,8 @@ from utils import get_logger, make_batch_key
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SOURCES_CSV = PROJECT_ROOT / "sources_seed.csv"
+SEEDS_DIR = PROJECT_ROOT / "seeds"
+SOURCES_CSV = SEEDS_DIR / "sources_seed.csv"
 RAW_STORAGE_DIR = PROJECT_ROOT / "data" / "raw"
 BUSINESS_DB_PATH = PROJECT_ROOT / "data" / "business" / "xinyuan.db"
 LOG_DIR = PROJECT_ROOT / "data" / "logs"

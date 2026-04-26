@@ -1,7 +1,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Set-Location $PSScriptRoot
+$ProjectRoot = if (Test-Path (Join-Path $PSScriptRoot "ui_app.py")) { $PSScriptRoot } else { Split-Path -Parent $PSScriptRoot }
+Set-Location $ProjectRoot
 
 function Test-PortInUse {
     param(
@@ -42,7 +43,7 @@ function Get-PortOwningProcessId {
     return $null
 }
 
-$pyvenv = Join-Path $PSScriptRoot ".venv\pyvenv.cfg"
+$pyvenv = Join-Path $ProjectRoot ".venv\pyvenv.cfg"
 if (-not (Test-Path $pyvenv)) {
     throw "Project virtual environment config not found: $pyvenv"
 }

@@ -120,6 +120,33 @@ class BusinessDatabase:
                     UNIQUE(batch_date, change_type, source_name, title, url)
                 );
 
+                CREATE TABLE IF NOT EXISTS processed_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_date TEXT NOT NULL,
+                    company_name TEXT,
+                    source_name TEXT,
+                    source_type TEXT,
+                    url TEXT,
+                    title TEXT,
+                    content_text TEXT,
+                    summary TEXT,
+                    reason TEXT,
+                    importance_score INTEGER,
+                    priority_label TEXT,
+                    published_at TEXT,
+                    fetched_at TEXT,
+                    is_historically_new INTEGER NOT NULL DEFAULT 0,
+                    linked_change_type TEXT,
+                    event_types_json TEXT,
+                    tech_signals_json TEXT,
+                    matched_companies_json TEXT,
+                    matched_focus_keywords_json TEXT,
+                    metadata_json TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(batch_date, source_name, title, url)
+                );
+
                 CREATE TABLE IF NOT EXISTS alerts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     batch_date TEXT NOT NULL,
@@ -174,6 +201,12 @@ class BusinessDatabase:
 
                 CREATE INDEX IF NOT EXISTS idx_insight_items_priority_label
                 ON insight_items(priority_label);
+
+                CREATE INDEX IF NOT EXISTS idx_processed_events_batch_date
+                ON processed_events(batch_date);
+
+                CREATE INDEX IF NOT EXISTS idx_processed_events_priority_label
+                ON processed_events(priority_label);
 
                 CREATE INDEX IF NOT EXISTS idx_task_runs_batch_key
                 ON task_runs(batch_key);
@@ -254,6 +287,51 @@ class BusinessDatabase:
                 rows,
             )
         return len(rows)
+
+    def purge_sina_sources(self) -> dict[str, int]:
+        with self.connect() as connection:
+            sources_deleted = connection.execute(
+                """
+                DELETE FROM sources
+                WHERE lower(coalesce(url, '')) LIKE '%sina%'
+                   OR lower(coalesce(source_name, '')) LIKE '%新浪%'
+                """
+            ).rowcount
+            events_deleted = connection.execute(
+                """
+                DELETE FROM events
+                WHERE lower(coalesce(url, '')) LIKE '%sina%'
+                   OR lower(coalesce(source_name, '')) LIKE '%新浪%'
+                """
+            ).rowcount
+            changes_deleted = connection.execute(
+                """
+                DELETE FROM change_logs
+                WHERE lower(coalesce(url, '')) LIKE '%sina%'
+                   OR lower(coalesce(source_name, '')) LIKE '%新浪%'
+                """
+            ).rowcount
+            insights_deleted = connection.execute(
+                """
+                DELETE FROM insight_items
+                WHERE lower(coalesce(url, '')) LIKE '%sina%'
+                   OR lower(coalesce(source_name, '')) LIKE '%新浪%'
+                """
+            ).rowcount
+            processed_events_deleted = connection.execute(
+                """
+                DELETE FROM processed_events
+                WHERE lower(coalesce(url, '')) LIKE '%sina%'
+                   OR lower(coalesce(source_name, '')) LIKE '%新浪%'
+                """
+            ).rowcount
+        return {
+            "sources_deleted": sources_deleted,
+            "events_deleted": events_deleted,
+            "change_logs_deleted": changes_deleted,
+            "insight_items_deleted": insights_deleted,
+            "processed_events_deleted": processed_events_deleted,
+        }
 
     def sync_events(self, directory: Path) -> int:
         return self._sync_jsonl_directory(
@@ -397,6 +475,7 @@ class BusinessDatabase:
                 "changed_ratio",
                 "metadata_json",
             ),
+            replace_batch=True,
         )
 
     def sync_insight_items(self, directory: Path) -> int:
@@ -464,6 +543,105 @@ class BusinessDatabase:
                 "priority_label",
                 "metadata_json",
             ),
+            replace_batch=True,
+        )
+
+    def sync_processed_events(self, directory: Path) -> int:
+        return self._sync_jsonl_directory(
+            directory=directory,
+            table_name="processed_events",
+            columns=(
+                "batch_date",
+                "company_name",
+                "source_name",
+                "source_type",
+                "url",
+                "title",
+                "content_text",
+                "summary",
+                "reason",
+                "importance_score",
+                "priority_label",
+                "published_at",
+                "fetched_at",
+                "is_historically_new",
+                "linked_change_type",
+                "event_types_json",
+                "tech_signals_json",
+                "matched_companies_json",
+                "matched_focus_keywords_json",
+                "metadata_json",
+            ),
+            transform=self._transform_processed_event_row,
+            conflict_columns=("batch_date", "source_name", "title", "url"),
+            update_columns=(
+                "company_name",
+                "source_type",
+                "content_text",
+                "summary",
+                "reason",
+                "importance_score",
+                "priority_label",
+                "published_at",
+                "fetched_at",
+                "is_historically_new",
+                "linked_change_type",
+                "event_types_json",
+                "tech_signals_json",
+                "matched_companies_json",
+                "matched_focus_keywords_json",
+                "metadata_json",
+            ),
+        )
+
+    def sync_processed_events_batch(self, directory: Path, batch_key: str) -> int:
+        return self._sync_jsonl_file(
+            file_path=directory / f"{batch_key}.jsonl",
+            batch_date=batch_key,
+            table_name="processed_events",
+            columns=(
+                "batch_date",
+                "company_name",
+                "source_name",
+                "source_type",
+                "url",
+                "title",
+                "content_text",
+                "summary",
+                "reason",
+                "importance_score",
+                "priority_label",
+                "published_at",
+                "fetched_at",
+                "is_historically_new",
+                "linked_change_type",
+                "event_types_json",
+                "tech_signals_json",
+                "matched_companies_json",
+                "matched_focus_keywords_json",
+                "metadata_json",
+            ),
+            transform=self._transform_processed_event_row,
+            conflict_columns=("batch_date", "source_name", "title", "url"),
+            update_columns=(
+                "company_name",
+                "source_type",
+                "content_text",
+                "summary",
+                "reason",
+                "importance_score",
+                "priority_label",
+                "published_at",
+                "fetched_at",
+                "is_historically_new",
+                "linked_change_type",
+                "event_types_json",
+                "tech_signals_json",
+                "matched_companies_json",
+                "matched_focus_keywords_json",
+                "metadata_json",
+            ),
+            replace_batch=True,
         )
 
     def upsert_task_run(
@@ -701,6 +879,34 @@ class BusinessDatabase:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_dict(row) for row in rows]
 
+    def fetch_recent_processed_events(
+        self,
+        company_name: str | None = None,
+        date_prefix: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        query = """
+            SELECT batch_date, company_name, source_name, source_type, url, title, content_text,
+                   summary, reason, importance_score, priority_label, published_at, fetched_at,
+                   is_historically_new, linked_change_type, event_types_json, tech_signals_json,
+                   matched_companies_json, matched_focus_keywords_json, metadata_json
+            FROM processed_events
+            WHERE company_name IN (SELECT company_name FROM companies)
+        """
+        params: list[object] = []
+        if company_name and company_name != "All":
+            query += " AND company_name = ?"
+            params.append(company_name)
+        if date_prefix:
+            query += " AND batch_date LIKE ?"
+            params.append(f"{date_prefix}%")
+        query += " ORDER BY importance_score DESC, COALESCE(published_at, fetched_at) DESC LIMIT ?"
+        params.append(limit)
+
+        with self.connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
     def fetch_daily_changes(self, report_date: date, limit: int = 20) -> list[dict]:
         date_prefix = report_date.isoformat()
         with self.connect() as connection:
@@ -734,6 +940,44 @@ class BusinessDatabase:
                 LIMIT ?
                 """,
                 (f"{date_prefix}%", limit),
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def fetch_focus_event_candidates(
+        self,
+        reference_date: date,
+        *,
+        company_name: str | None = None,
+        max_age_days: int = 60,
+        limit: int | None = None,
+    ) -> list[dict]:
+        start_date = reference_date.fromordinal(reference_date.toordinal() - max_age_days)
+        params: list[object] = [start_date.isoformat(), reference_date.isoformat()]
+        company_filter = ""
+        if company_name and company_name != "All":
+            company_filter = " AND company_name = ?"
+            params.append(company_name)
+        limit_clause = ""
+        if limit is not None:
+            limit_clause = " LIMIT ?"
+            params.append(limit)
+        with self.connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT batch_date, company_name, source_name, source_type, url, title, content_text,
+                       summary, reason, importance_score, priority_label, published_at, fetched_at,
+                       is_historically_new, linked_change_type, event_types_json, tech_signals_json,
+                       matched_companies_json, matched_focus_keywords_json, metadata_json
+                FROM processed_events
+                WHERE company_name IN (SELECT company_name FROM companies)
+                  AND published_at IS NOT NULL
+                  AND substr(published_at, 1, 10) >= ?
+                  AND substr(published_at, 1, 10) <= ?
+                  {company_filter}
+                ORDER BY published_at DESC, fetched_at DESC, batch_date DESC
+                {limit_clause}
+                """,
+                params,
             ).fetchall()
         return [self._row_to_dict(row) for row in rows]
 
@@ -821,7 +1065,14 @@ class BusinessDatabase:
         transform,
         conflict_columns: tuple[str, ...],
         update_columns: tuple[str, ...],
+        replace_batch: bool = False,
     ) -> int:
+        if replace_batch:
+            with self.connect() as connection:
+                connection.execute(
+                    f"DELETE FROM {table_name} WHERE batch_date = ?",
+                    (batch_date,),
+                )
         if not file_path.exists():
             return 0
 
@@ -885,6 +1136,11 @@ class BusinessDatabase:
             )
             if not resolved_company_name:
                 continue
+            if BusinessDatabase._is_excluded_source_row(
+                row.get("source_name", ""),
+                row.get("url", ""),
+            ):
+                continue
             transformed.append(
                 {
                     "batch_date": batch_date,
@@ -915,6 +1171,11 @@ class BusinessDatabase:
                 metadata.get("matched_companies", []),
             )
             if not resolved_company_name:
+                continue
+            if BusinessDatabase._is_excluded_source_row(
+                row.get("source_name", ""),
+                row.get("url", ""),
+            ):
                 continue
             transformed.append(
                 {
@@ -947,6 +1208,11 @@ class BusinessDatabase:
             )
             if not resolved_company_name:
                 continue
+            if BusinessDatabase._is_excluded_source_row(
+                row.get("source_name", ""),
+                row.get("url", ""),
+            ):
+                continue
             transformed.append(
                 {
                     "batch_date": batch_date,
@@ -961,6 +1227,48 @@ class BusinessDatabase:
                     "detected_at": row.get("detected_at"),
                     "priority_label": row.get("priority_label", ""),
                     "url": row.get("url", ""),
+                    "metadata_json": json.dumps(metadata, ensure_ascii=False),
+                }
+            )
+        return transformed
+
+    @staticmethod
+    def _transform_processed_event_row(batch_date: str, rows: Iterable[dict]) -> list[dict]:
+        transformed = []
+        for row in rows:
+            metadata = row.get("metadata", {})
+            resolved_company_name = BusinessDatabase._resolve_company_name(
+                row.get("company_name", ""),
+                row.get("matched_companies", []),
+            )
+            if not resolved_company_name:
+                continue
+            if BusinessDatabase._is_excluded_source_row(
+                row.get("source_name", ""),
+                row.get("url", ""),
+            ):
+                continue
+            transformed.append(
+                {
+                    "batch_date": batch_date,
+                    "company_name": resolved_company_name,
+                    "source_name": row.get("source_name", ""),
+                    "source_type": row.get("source_type", ""),
+                    "url": row.get("url", ""),
+                    "title": row.get("title", ""),
+                    "content_text": row.get("content_text", ""),
+                    "summary": row.get("summary", ""),
+                    "reason": row.get("reason", ""),
+                    "importance_score": row.get("importance_score"),
+                    "priority_label": row.get("priority_label", ""),
+                    "published_at": row.get("published_at"),
+                    "fetched_at": row.get("fetched_at"),
+                    "is_historically_new": 1 if row.get("is_historically_new") else 0,
+                    "linked_change_type": row.get("linked_change_type"),
+                    "event_types_json": json.dumps(row.get("event_types", []), ensure_ascii=False),
+                    "tech_signals_json": json.dumps(row.get("tech_signals", []), ensure_ascii=False),
+                    "matched_companies_json": json.dumps(row.get("matched_companies", []), ensure_ascii=False),
+                    "matched_focus_keywords_json": json.dumps(row.get("matched_focus_keywords", []), ensure_ascii=False),
                     "metadata_json": json.dumps(metadata, ensure_ascii=False),
                 }
             )
@@ -990,6 +1298,12 @@ class BusinessDatabase:
             if term:
                 terms.append(term)
         return terms
+
+    @staticmethod
+    def _is_excluded_source_row(source_name: str, url: str) -> bool:
+        source_name_lower = (source_name or "").lower()
+        url_lower = (url or "").lower()
+        return "sina" in url_lower or "新浪" in source_name_lower
 
     @staticmethod
     def _ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, column_def: str) -> None:

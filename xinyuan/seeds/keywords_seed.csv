@@ -1,4 +1,4 @@
-scope,company_name,keyword,keyword_type,priority,match_mode,notes
+﻿scope,company_name,keyword,keyword_type,priority,match_mode,notes
 global,,融资,event,high,or,融资相关事件
 global,,募资,event,medium,or,融资相关事件
 global,,战略投资,event,high,or,融资相关事件
@@ -138,3 +138,28 @@ company,CellX,量产,focus,high,and,重点变化词
 company,CellX,战略合作,focus,high,and,重点变化词
 company,CellX,融资,focus,high,and,重点变化词
 company,CellX,职位,focus,medium,and,重点变化词
+company,昆山亚香,昆山亚香,alias,high,and,公司识别
+company,昆山亚香,亚香股份,alias,high,and,公司识别
+company,昆山亚香,昆山亚香香料股份有限公司,alias,high,and,公司识别
+company,昆山亚香,Asia Aroma,alias,medium,and,公司识别
+company,昆山亚香,香精,focus,high,and,重点业务词
+company,昆山亚香,香料,focus,high,and,重点业务词
+company,昆山亚香,天然香料,focus,high,and,重点业务词
+company,昆山亚香,凉味剂,focus,high,and,重点业务词
+company,昆山亚香,食品添加剂,focus,medium,and,重点业务词
+company,昆山亚香,扩产,focus,high,and,重点变化词
+company,昆山亚香,项目,focus,medium,and,重点变化词
+company,昆山亚香,合作,focus,high,and,重点变化词
+company,昆山亚香,公告,focus,high,and,重点变化词
+company,华恒生物,688639,alias,medium,and,股票代码识别
+company,凯赛生物,688065,alias,medium,and,股票代码识别
+company,川宁生物,301301,alias,medium,and,股票代码识别
+company,昆山亚香,301220,alias,medium,and,股票代码识别
+global,,年报,event,high,or,定期报告事件
+global,,半年报,event,medium,or,定期报告事件
+global,,一季报,event,medium,or,定期报告事件
+global,,三季报,event,medium,or,定期报告事件
+global,,财报,event,high,or,财务报告事件
+global,,业绩,event,high,or,业绩相关事件
+global,,业绩预告,event,high,or,业绩预告事件
+global,,分红,event,medium,or,资本市场事件

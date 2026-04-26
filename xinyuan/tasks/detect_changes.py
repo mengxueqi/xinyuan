@@ -44,6 +44,12 @@ def get_previous_batch_key(
     return prior_batch_keys[-1] if prior_batch_keys else None
 
 
+def get_historical_batch_keys(
+    available_batch_keys: list[str], current_batch_key: str
+) -> list[str]:
+    return [batch_key for batch_key in available_batch_keys if batch_key < current_batch_key]
+
+
 def detect_changes(batch_keys: list[str] | None = None, logger=None) -> dict[str, Any]:
     run_started_at = datetime.now()
     logger = logger or get_logger(LOG_DIR, "xinyuan.detect")
@@ -74,42 +80,48 @@ def detect_changes(batch_keys: list[str] | None = None, logger=None) -> dict[str
 
     for batch_key in target_batch_keys:
         previous_batch_key = get_previous_batch_key(available_batch_keys, batch_key)
-        previous_event_batch_key = get_previous_batch_key(sorted(event_batches.keys()), batch_key)
-        if not previous_batch_key:
+        historical_event_batch_keys = get_historical_batch_keys(sorted(event_batches.keys()), batch_key)
+        if not previous_batch_key and not historical_event_batch_keys:
             logger.info("Change detection skipped compare | batch=%s | reason=no_previous_batch", batch_key)
             counts = change_storage.write_batch(batch_key, [], run_started_at)
             batch_counts[batch_key] = counts
             continue
 
         changes = []
-        previous_known_sources = {
+        historical_events = [
+            row
+            for historical_batch_key in historical_event_batch_keys
+            for row in event_batches.get(historical_batch_key, [])
+        ]
+        historical_known_sources = {
             (
                 row.get("company_name", "Unknown"),
                 row.get("source_name", ""),
             )
-            for row in event_batches.get(previous_event_batch_key or previous_batch_key, [])
+            for row in historical_events
             if row.get("source_name")
         }
         changes.extend(
             detect_new_events(
                 batch_key,
                 event_batches.get(batch_key, []),
-                event_batches.get(previous_event_batch_key or previous_batch_key, []),
-                previous_known_sources=previous_known_sources,
+                historical_events,
+                historical_known_sources=historical_known_sources,
             )
         )
-        changes.extend(
-            detect_page_changes(
-                page_batches.get(batch_key, []),
-                page_batches.get(previous_batch_key, []),
+        if previous_batch_key:
+            changes.extend(
+                detect_page_changes(
+                    page_batches.get(batch_key, []),
+                    page_batches.get(previous_batch_key, []),
+                )
             )
-        )
-        changes.extend(
-            detect_job_changes(
-                job_batches.get(batch_key, []),
-                job_batches.get(previous_batch_key, []),
+            changes.extend(
+                detect_job_changes(
+                    job_batches.get(batch_key, []),
+                    job_batches.get(previous_batch_key, []),
+                )
             )
-        )
 
         counts = change_storage.write_batch(batch_key, changes, run_started_at)
         batch_counts[batch_key] = counts

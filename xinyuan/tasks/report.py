@@ -13,10 +13,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BUSINESS_DB_PATH = PROJECT_ROOT / "data" / "business" / "xinyuan.db"
 REPORTS_DIR = PROJECT_ROOT / "data" / "reports" / "daily"
 LOG_DIR = PROJECT_ROOT / "data" / "logs"
-FOCUS_EVENT_TYPES = {"product", "financing", "capacity", "ip"}
+FOCUS_EVENT_TYPES = {"product", "financing", "capacity", "ip", "performance"}
 FOCUS_EVENT_LIMIT = 20
 FOCUS_EVENT_MAX_PER_COMPANY = 6
-FOCUS_EVENT_MAX_AGE_DAYS = 7
+FOCUS_EVENT_MAX_AGE_DAYS = 60
 
 
 def render_markdown_report(
@@ -33,8 +33,8 @@ def render_markdown_report(
         "",
         "## Overview",
         f"- Focus events: {len(focus_events)}",
-        f"- Change logs: {counts.get('change_logs', 0)}",
-        f"- Analysis items: {counts.get('insight_items', 0)}",
+        f"- New events: {counts.get('change_logs', 0)}",
+        f"- Change analysis items: {counts.get('insight_items', 0)}",
         "",
         "## Focus Events",
         "",
@@ -42,17 +42,20 @@ def render_markdown_report(
 
     if focus_events:
         for index, event in enumerate(focus_events[:FOCUS_EVENT_LIMIT], start=1):
-            event_types = event.get("event_types_json", [])
+            event_types = event.get("event_types_json") or (event.get("metadata_json", {}) or {}).get("event_types", [])
             event_text = ", ".join(event_types) if event_types else "uncategorized"
             company_display = format_company_display(
                 event.get("company_name"),
-                event.get("matched_companies_json", []),
+                event.get("matched_companies_json", [])
+                or (event.get("metadata_json", {}) or {}).get("matched_companies", []),
             )
             lines.append(
                 f"{index}. [{company_display}] "
                 f"{event.get('title', '')}"
             )
             lines.append(f"   - Types: {event_text}")
+            if event.get("importance_score") is not None:
+                lines.append(f"   - Score: {event['importance_score']}")
             if event.get("url"):
                 lines.append(f"   - URL: {event['url']}")
     else:
@@ -65,7 +68,7 @@ def render_markdown_report(
 def generate_daily_report(report_date: date | None = None, logger=None) -> Path:
     now = datetime.now()
     generated_date = now.date()
-    covered_date = report_date or (generated_date - timedelta(days=1))
+    covered_date = report_date or generated_date
     logger = logger or get_logger(LOG_DIR, "xinyuan.report")
     logger.info(
         "generate_daily_report start | generated_date=%s | covered_date=%s",
@@ -78,7 +81,10 @@ def generate_daily_report(report_date: date | None = None, logger=None) -> Path:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     counts = database.fetch_daily_counts(covered_date)
-    events = database.fetch_daily_events(covered_date, limit=200)
+    events = database.fetch_focus_event_candidates(
+        covered_date,
+        max_age_days=FOCUS_EVENT_MAX_AGE_DAYS,
+    )
     focus_events = select_focus_events(
         events,
         FOCUS_EVENT_TYPES,

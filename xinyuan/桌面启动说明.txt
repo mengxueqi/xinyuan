@@ -1,12 +1,11 @@
-双击启动方式
+桌面启动说明
 
-1. start_ui.cmd
-打开本地可视化界面，并在浏览器访问 http://127.0.0.1:8501
+1. launchers\start_ui.cmd
+用于启动本地监控界面，默认访问 http://localhost:8501
 
-2. start_scheduler.cmd
-启动固定时间调度任务窗口
+2. launchers\start_scheduler.cmd
+用于启动后台定时调度
 
-说明
-- 先用 start_ui.cmd 查看数据、手动立即抓取、阅读日报
-- 如果要让固定时间任务持续运行，再单独打开 start_scheduler.cmd
-- 两个窗口关闭后，对应功能会停止
+建议：
+- 优先用 launchers\start_ui.cmd 查看数据、立即抓取、阅读日报
+- 如果要长期后台定时运行，可使用 launchers\start_scheduler.cmd

@@ -10,12 +10,14 @@ from utils import get_logger, list_batch_keys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
+SEEDS_DIR = PROJECT_ROOT / "seeds"
 BUSINESS_DB_PATH = DATA_DIR / "business" / "xinyuan.db"
-COMPANIES_CSV = PROJECT_ROOT / "companies_core_seed.csv"
-SOURCES_CSV = PROJECT_ROOT / "sources_seed.csv"
+COMPANIES_CSV = SEEDS_DIR / "companies_core_seed.csv"
+SOURCES_CSV = SEEDS_DIR / "sources_seed.csv"
 EVENTS_DIR = DATA_DIR / "processed" / "event_candidates"
 CHANGES_DIR = DATA_DIR / "changes" / "change_logs"
 INSIGHTS_DIR = DATA_DIR / "insights" / "insight_items"
+PROCESSED_EVENTS_DIR = DATA_DIR / "insights" / "processed_events"
 LOG_DIR = DATA_DIR / "logs"
 
 
@@ -34,6 +36,7 @@ def sync_business_db(batch_keys: list[str] | None = None, logger=None) -> dict[s
             set(list_batch_keys(EVENTS_DIR))
             | set(list_batch_keys(CHANGES_DIR))
             | set(list_batch_keys(INSIGHTS_DIR))
+            | set(list_batch_keys(PROCESSED_EVENTS_DIR))
         )
         completed_batches = set(database.fetch_completed_batch_keys("sync_business_db"))
         target_batch_keys = [key for key in candidate_batches if key not in completed_batches]
@@ -45,17 +48,20 @@ def sync_business_db(batch_keys: list[str] | None = None, logger=None) -> dict[s
         event_count = database.sync_events_batch(EVENTS_DIR, batch_key)
         change_count = database.sync_change_logs_batch(CHANGES_DIR, batch_key)
         insight_count = database.sync_insight_items_batch(INSIGHTS_DIR, batch_key)
+        processed_event_count = database.sync_processed_events_batch(PROCESSED_EVENTS_DIR, batch_key)
         batch_counts[batch_key] = {
             "events": event_count,
             "changes": change_count,
             "insights": insight_count,
+            "processed_events": processed_event_count,
         }
         logger.info(
-            "Database sync batch complete | batch=%s | events=%s | changes=%s | insights=%s",
+            "Database sync batch complete | batch=%s | events=%s | changes=%s | insights=%s | processed_events=%s",
             batch_key,
             event_count,
             change_count,
             insight_count,
+            processed_event_count,
         )
 
     logger.info(

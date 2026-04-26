@@ -18,7 +18,8 @@ from utils import get_logger, pending_batch_keys
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAW_DOCUMENTS_DIR = PROJECT_ROOT / "data" / "raw" / "raw_documents"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
-KEYWORDS_CSV = PROJECT_ROOT / "keywords_seed.csv"
+SEEDS_DIR = PROJECT_ROOT / "seeds"
+KEYWORDS_CSV = SEEDS_DIR / "keywords_seed.csv"
 LOG_DIR = PROJECT_ROOT / "data" / "logs"
 
 

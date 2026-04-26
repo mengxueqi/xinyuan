@@ -4,7 +4,8 @@ import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+CURRENT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CURRENT_DIR if (CURRENT_DIR / "scheduler.py").exists() else CURRENT_DIR.parent
 SITE_PACKAGES = PROJECT_ROOT / ".venv" / "Lib" / "site-packages"
 
 if str(PROJECT_ROOT) not in sys.path:

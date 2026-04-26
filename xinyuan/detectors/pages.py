@@ -4,6 +4,9 @@ from difflib import SequenceMatcher
 
 from detectors.base import ChangeRecord
 
+BLOCKED_SOURCE_NAME_HINTS = ("股票页", "财务摘要页", "公司公告页（股票）")
+BLOCKED_URL_HINTS = ("sina.com.cn",)
+
 
 def detect_page_changes(
     current_snapshots: list[dict],
@@ -15,6 +18,8 @@ def detect_page_changes(
     changes: list[ChangeRecord] = []
 
     for snapshot in current_snapshots:
+        if _is_blocked_page_snapshot(snapshot):
+            continue
         key = _snapshot_key(snapshot)
         previous = previous_by_page.get(key)
         if not previous:
@@ -53,6 +58,16 @@ def detect_page_changes(
         )
 
     return changes
+
+
+def _is_blocked_page_snapshot(snapshot: dict) -> bool:
+    source_name = str(snapshot.get("source_name", ""))
+    page_url = str(snapshot.get("page_url", "")).lower()
+    if any(hint in source_name for hint in BLOCKED_SOURCE_NAME_HINTS):
+        return True
+    if any(hint in page_url for hint in BLOCKED_URL_HINTS):
+        return True
+    return False
 
 
 def _snapshot_key(snapshot: dict) -> tuple[str, str, str]:

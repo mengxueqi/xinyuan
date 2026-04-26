@@ -29,10 +29,13 @@ class LocalChangeStorage:
         changes: list[ChangeRecord],
         run_started_at: datetime,
     ) -> dict[str, int]:
-        self._write_jsonl(
-            self.change_logs_dir / f"{batch_key}.jsonl",
-            [{**asdict(change), "batch_key": batch_key} for change in changes],
-        )
+        change_log_path = self.change_logs_dir / f"{batch_key}.jsonl"
+        change_rows = [{**asdict(change), "batch_key": batch_key} for change in changes]
+        if change_rows:
+            self._write_jsonl(change_log_path, change_rows)
+        elif change_log_path.exists():
+            change_log_path.unlink()
+
         self._write_jsonl(
             self.detection_runs_dir / f"{batch_key}.jsonl",
             [

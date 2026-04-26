@@ -1,16 +1,17 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Set-Location $PSScriptRoot
+$ProjectRoot = if (Test-Path (Join-Path $PSScriptRoot "scheduler.py")) { $PSScriptRoot } else { Split-Path -Parent $PSScriptRoot }
+Set-Location $ProjectRoot
 
-$logDir = Join-Path $PSScriptRoot "data\logs"
+$logDir = Join-Path $ProjectRoot "data\logs"
 if (-not (Test-Path $logDir)) {
     New-Item -ItemType Directory -Path $logDir | Out-Null
 }
 
 $logFile = Join-Path $logDir "scheduler_startup.log"
 
-$pyvenv = Join-Path $PSScriptRoot ".venv\pyvenv.cfg"
+$pyvenv = Join-Path $ProjectRoot ".venv\pyvenv.cfg"
 if (-not (Test-Path $pyvenv)) {
     throw "Project virtual environment config not found: $pyvenv"
 }

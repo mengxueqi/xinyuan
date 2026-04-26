@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 import re
 
@@ -10,7 +10,6 @@ from business_db import BusinessDatabase
 from tasks.pipeline import (
     run_build_insights_now,
     run_crawl_now,
-    run_daily_report_now,
     run_detect_changes_now,
     run_full_pipeline_now,
     run_process_now,
@@ -23,10 +22,10 @@ from utils import select_focus_events
 PROJECT_ROOT = Path(__file__).resolve().parent
 BUSINESS_DB_PATH = PROJECT_ROOT / "data" / "business" / "xinyuan.db"
 REPORTS_DIR = PROJECT_ROOT / "data" / "reports" / "daily"
-FOCUS_EVENT_TYPES = {"product", "financing", "capacity", "ip"}
+FOCUS_EVENT_TYPES = {"product", "financing", "capacity", "ip", "performance"}
 FOCUS_EVENT_LIMIT = 20
 FOCUS_EVENT_MAX_PER_COMPANY = 6
-FOCUS_EVENT_MAX_AGE_DAYS = 7
+FOCUS_EVENT_MAX_AGE_DAYS = 60
 
 
 def get_database() -> BusinessDatabase:
@@ -121,11 +120,17 @@ def parse_report_markdown(report_name: str, report_content: str) -> dict:
     for line in overview_lines:
         if "Focus events:" in line:
             overview["focus_events"] = _extract_trailing_int(line)
+        elif "Priority events:" in line:
+            overview["focus_events"] = _extract_trailing_int(line)
         elif "Event candidates:" in line:
             overview["focus_events"] = _extract_trailing_int(line)
-        elif "Change logs:" in line:
+        elif (
+            "Change logs:" in line
+            or "Historically new events / page changes:" in line
+            or "New events:" in line
+        ):
             overview["change_logs"] = _extract_trailing_int(line)
-        elif "Insight items:" in line or "Analysis items:" in line:
+        elif "Insight items:" in line or "Analysis items:" in line or "Change analysis items:" in line:
             overview["insight_items"] = _extract_trailing_int(line)
 
     return {
@@ -135,7 +140,9 @@ def parse_report_markdown(report_name: str, report_content: str) -> dict:
         "analysis": parse_report_items(sections.get("Analysis", []) or sections.get("Top Insights", [])),
         "change_logs": parse_report_items(sections.get("Change Logs", [])),
         "focus_events": parse_report_items(
-            sections.get("Focus Events", []) or sections.get("Event Candidates", [])
+            sections.get("Recent Priority Events", [])
+            or sections.get("Focus Events", [])
+            or sections.get("Event Candidates", [])
         ),
     }
 
@@ -216,7 +223,7 @@ def render_overview(counts: dict[str, int]) -> None:
         ("Companies", counts["companies"]),
         ("Sources", counts["sources"]),
         ("Events", counts["events"]),
-        ("Changes", counts["change_logs"]),
+        ("New Events", counts["change_logs"]),
         ("Analysis", counts["insight_items"]),
         ("Reports", counts["report_runs"]),
         ("Task Runs", counts["task_runs"]),
@@ -231,6 +238,10 @@ def build_dataframe_rows(records: list[dict], keys: list[str]) -> list[dict]:
         row = {}
         for key in keys:
             value = record.get(key)
+            if key == "event_types_json" and not value:
+                metadata = record.get("metadata_json") or {}
+                if isinstance(metadata, dict):
+                    value = metadata.get("event_types", [])
             if isinstance(value, list):
                 row[key] = ", ".join(str(item) for item in value)
             else:
@@ -314,7 +325,10 @@ def render_reports_panel() -> None:
             else {"events": 0, "change_logs": 0, "insight_items": 0}
         )
         live_events = (
-            database.fetch_daily_events(covered_date, limit=200)
+            database.fetch_focus_event_candidates(
+                covered_date,
+                max_age_days=FOCUS_EVENT_MAX_AGE_DAYS,
+            )
             if covered_date
             else []
         )
@@ -335,44 +349,52 @@ def render_reports_panel() -> None:
                 )
             overview_cols = st.columns(3)
             overview_cols[0].metric("Focus Events", len(focus_events))
-            overview_cols[1].metric("Change Logs", live_counts.get("change_logs", overview.get("change_logs", 0)))
-            overview_cols[2].metric("Analysis", live_counts.get("insight_items", overview.get("insight_items", 0)))
+            overview_cols[1].metric(
+                "New Events",
+                live_counts.get("change_logs", overview.get("change_logs", 0)),
+            )
+            overview_cols[2].metric("Change Analysis", live_counts.get("insight_items", overview.get("insight_items", 0)))
 
         with st.container(border=True):
             st.subheader("Focus Events")
+            if covered_date:
+                st.caption(
+                    f"This section is anchored to the covered date ({covered_date.isoformat()}), not the report file name. "
+                    "It is selected from the processed event library."
+                )
             if focus_events:
                 for event in focus_events:
                     company_display = format_company_display(
                         event.get("company_name"),
-                        event.get("matched_companies_json", []),
+                        event.get("matched_companies_json", [])
+                        or (event.get("metadata_json", {}) or {}).get("matched_companies", []),
                     )
                     title = event.get("title") or "(untitled event)"
-                    event_types = event.get("event_types_json") or []
-                    st.markdown(f"**[{company_display}] {title}**")
-                    if event_types:
-                        st.caption(f"Types: {', '.join(event_types)}")
-                    if event.get("published_at"):
-                        st.caption(f"Published: {event['published_at']}")
+                    event_types = event.get("event_types_json") or (event.get("metadata_json", {}) or {}).get("event_types", [])
+                    title_line = f"**[{company_display}] {title}**"
                     if event.get("url"):
-                        st.markdown(f"[Open link]({event['url']})")
+                        title_line += f" [Open link]({event['url']})"
+                    st.markdown(title_line)
+
+                    meta_cols = st.columns(3)
+                    meta_cols[0].caption(
+                        f"Types: {', '.join(event_types)}" if event_types else "Types: uncategorized"
+                    )
+                    meta_cols[1].caption(
+                        f"Score: {event['importance_score']}"
+                        if event.get("importance_score") is not None
+                        else "Score: -"
+                    )
+                    if event.get("published_at"):
+                        meta_cols[2].caption(f"Published: {event['published_at']}")
+                    elif event.get("detected_at"):
+                        meta_cols[2].caption(f"Detected: {str(event['detected_at'])[:10]}")
+                    else:
+                        meta_cols[2].caption("Published: -")
             else:
                 st.write("No focus events were found for this date.")
     else:
         st.info("No reports generated yet.")
-
-
-def render_manual_report_panel() -> None:
-    selected_date = st.date_input(
-        "Covered date",
-        value=date.today() - timedelta(days=1),
-        key="manual_report_date",
-    )
-    if st.button("Generate Daily Report", use_container_width=True):
-        with st.spinner("Generating report..."):
-            st.session_state["last_log"] = run_daily_report_now(selected_date)
-    st.caption(
-        "The file is named with today's date. The selected date is used as the covered data date."
-    )
 
 
 def render_event_query_panel(database: BusinessDatabase) -> None:
@@ -422,24 +444,16 @@ def render_event_query_panel(database: BusinessDatabase) -> None:
 
 def render_dashboard(database: BusinessDatabase) -> None:
     selected_company, date_prefix, row_limit = get_dashboard_filters(database)
-    selected_date = parse_iso_date(date_prefix)
-
-    events = database.fetch_recent_events(selected_company, date_prefix, row_limit)
     changes = database.fetch_recent_changes(selected_company, date_prefix, row_limit)
     analysis = database.fetch_recent_insights(selected_company, date_prefix, row_limit)
-    focus_events = select_focus_events(
-        events,
-        FOCUS_EVENT_TYPES,
-        reference_date=selected_date,
-        max_items=FOCUS_EVENT_LIMIT,
-        max_per_company=FOCUS_EVENT_MAX_PER_COMPANY,
-        max_age_days=FOCUS_EVENT_MAX_AGE_DAYS,
-    )
 
-    tabs = st.tabs(["Change Logs", "Analysis", "Focus Events"])
+    tabs = st.tabs(["New Events", "Change Analysis"])
 
     with tabs[0]:
-        st.caption("Detected differences between adjacent batches.")
+        st.caption(
+            "Shows historically new events plus meaningful page or job snapshot changes. "
+            "Event changes are compared against the historical event library, not just the previous batch."
+        )
         render_dataframe_with_links(
             changes,
             [
@@ -448,13 +462,14 @@ def render_dashboard(database: BusinessDatabase) -> None:
                 "change_type",
                 "importance_score",
                 "summary",
-                "changed_ratio",
                 "url",
             ],
         )
 
     with tabs[1]:
-        st.caption("Scored and summarized intelligence output.")
+        st.caption(
+            "Scored and summarized intelligence output derived from historically new events and page/job changes."
+        )
         render_dataframe_with_links(
             analysis,
             [
@@ -464,20 +479,6 @@ def render_dashboard(database: BusinessDatabase) -> None:
                 "importance_score",
                 "summary",
                 "reason",
-                "url",
-            ],
-        )
-
-    with tabs[2]:
-        st.caption("Current logic: product, financing, capacity, and IP-related items. Maximum 20 rows, up to 6 per company, with type diversity preferred.")
-        render_dataframe_with_links(
-            focus_events,
-            [
-                "batch_date",
-                "company_name",
-                "source_name",
-                "title",
-                "event_types_json",
                 "url",
             ],
         )
@@ -519,18 +520,15 @@ def main() -> None:
     database = get_database()
     render_overview(counts)
 
-    main_tabs = st.tabs(["Report", "Manual Report", "Dashboard", "Event Query"])
+    main_tabs = st.tabs(["Report", "Dashboard", "Event Query"])
 
     with main_tabs[0]:
         render_reports_panel()
 
     with main_tabs[1]:
-        render_manual_report_panel()
-
-    with main_tabs[2]:
         render_dashboard(database)
 
-    with main_tabs[3]:
+    with main_tabs[2]:
         render_event_query_panel(database)
 
 
