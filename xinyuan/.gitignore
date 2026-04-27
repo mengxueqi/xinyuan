@@ -1,6 +1,10 @@
 # Virtual environments
 .venv/
 venv/
+.codex_deps/
+.codex_pip_tmp/
+.codex_tmp/
+.codex_run_streamlit.py
 
 # Python caches
 __pycache__/
