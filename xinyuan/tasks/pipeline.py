@@ -19,12 +19,22 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BUSINESS_DB_PATH = PROJECT_ROOT / "data" / "business" / "xinyuan.db"
 LOG_DIR = PROJECT_ROOT / "data" / "logs"
 
+
+def generate_report_stage(batch_keys: list[str] | None = None, logger=None) -> dict[str, Any]:
+    output_path = generate_daily_report(logger=logger)
+    return {
+        "processed_batches": batch_keys or [],
+        "output_path": str(output_path),
+    }
+
+
 PIPELINE_STAGES: tuple[tuple[str, Callable[..., dict[str, Any]]], ...] = (
     ("crawl_sources", crawl_sources),
     ("process_documents", process_documents),
     ("detect_changes", detect_changes),
     ("build_insights", build_insights),
     ("sync_business_db", sync_business_db),
+    ("generate_daily_report", generate_report_stage),
 )
 
 
@@ -54,6 +64,8 @@ def _summarize_stage_result(stage_name: str, result: dict[str, Any]) -> str:
             f"{stage_name}: total={result.get('total_sources', 0)}, "
             f"success={result.get('success_count', 0)}, failure={result.get('failure_count', 0)}"
         )
+    if stage_name == "generate_daily_report" and result.get("output_path"):
+        return f"{stage_name}: output={result['output_path']}"
     if processed_batches:
         return f"{stage_name}: batches={', '.join(processed_batches)}"
     return f"{stage_name}: completed"
@@ -166,6 +178,7 @@ def run_pipeline(batch_key: str | None = None, logger=None) -> dict[str, Any]:
             ("detect_changes", detect_changes),
             ("build_insights", build_insights),
             ("sync_business_db", sync_business_db),
+            ("generate_daily_report", generate_report_stage),
         )
         overall_status = "completed"
         for stage_name, task in dependent_stages:

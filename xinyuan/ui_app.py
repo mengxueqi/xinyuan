@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date
 from pathlib import Path
 import re
@@ -277,6 +278,194 @@ def render_dataframe_with_links(records: list[dict], keys: list[str]) -> None:
     )
 
 
+def get_change_company_display(record: dict) -> str:
+    metadata = record.get("metadata_json") or {}
+    return format_company_display(
+        record.get("company_name"),
+        metadata.get("matched_companies", []) if isinstance(metadata, dict) else [],
+    )
+
+
+def get_change_event_types(record: dict) -> list[str]:
+    metadata = record.get("metadata_json") or {}
+    event_types = metadata.get("event_types", []) if isinstance(metadata, dict) else []
+    return sorted({str(item) for item in event_types if item})
+
+
+def get_change_published_date(record: dict) -> str:
+    metadata = record.get("metadata_json") or {}
+    published_at = metadata.get("published_at") if isinstance(metadata, dict) else None
+    parsed = parse_iso_date(published_at or record.get("detected_at") or record.get("batch_date"))
+    return parsed.isoformat() if parsed else ""
+
+
+def is_announcement_change(record: dict) -> bool:
+    url = str(record.get("url") or "").lower()
+    source_name = str(record.get("source_name") or "").lower()
+    return (
+        "eastmoney.com/notices" in url
+        or "/notices/" in url
+        or "notice" in source_name
+        or "announcement" in source_name
+    )
+
+
+def build_company_distribution(records: list[dict]) -> list[dict]:
+    grouped: dict[str, list[dict]] = {}
+    for record in records:
+        grouped.setdefault(get_change_company_display(record), []).append(record)
+
+    rows = []
+    for company_name, company_records in grouped.items():
+        sources = sorted({str(item.get("source_name") or "") for item in company_records if item.get("source_name")})
+        rows.append(
+            {
+                "company_name": company_name,
+                "new_events": len(company_records),
+                "top_score": max((item.get("importance_score") or 0) for item in company_records),
+                "latest_detected": max(str(item.get("detected_at") or item.get("batch_date") or "") for item in company_records),
+                "sources": ", ".join(sources[:3]),
+            }
+        )
+    return sorted(rows, key=lambda row: (-row["new_events"], row["company_name"]))
+
+
+def build_change_clusters(records: list[dict]) -> list[dict]:
+    grouped: dict[tuple, list[dict]] = {}
+    for record in records:
+        if is_announcement_change(record):
+            key = (
+                "announcement",
+                record.get("company_name") or "",
+                record.get("source_name") or "",
+                get_change_published_date(record),
+            )
+        else:
+            key = (
+                "event",
+                record.get("batch_date") or "",
+                record.get("company_name") or "",
+                record.get("source_name") or "",
+                record.get("title") or record.get("summary") or "",
+                record.get("url") or "",
+            )
+        grouped.setdefault(key, []).append(record)
+
+    clusters = []
+    for items in grouped.values():
+        representative = max(
+            items,
+            key=lambda item: (
+                item.get("importance_score") or 0,
+                str(item.get("detected_at") or item.get("batch_date") or ""),
+            ),
+        )
+        company_display = get_change_company_display(representative)
+        published_date = get_change_published_date(representative)
+        event_types = sorted({event_type for item in items for event_type in get_change_event_types(item)})
+        top_score = max((item.get("importance_score") or 0) for item in items)
+        is_pack = len(items) > 1 and is_announcement_change(representative)
+        title = representative.get("title") or representative.get("summary") or "(untitled event)"
+        if is_pack:
+            cluster_title = f"{company_display} announcement pack"
+            if published_date:
+                cluster_title = f"{cluster_title} - {published_date}"
+        else:
+            cluster_title = title
+
+        clusters.append(
+            {
+                "cluster_title": cluster_title,
+                "company_name": company_display,
+                "item_count": len(items),
+                "published_date": published_date,
+                "event_types": ", ".join(event_types) if event_types else "uncategorized",
+                "top_score": top_score,
+                "source_name": representative.get("source_name", ""),
+                "url": representative.get("url", ""),
+                "latest_detected": max(str(item.get("detected_at") or item.get("batch_date") or "") for item in items),
+                "summary": (
+                    f"Grouped {len(items)} related announcements. Top item: {title}"
+                    if is_pack
+                    else representative.get("summary", "")
+                ),
+                "items": sorted(
+                    items,
+                    key=lambda item: (
+                        -(item.get("importance_score") or 0),
+                        str(item.get("title") or ""),
+                    ),
+                ),
+            }
+        )
+
+    return sorted(
+        clusters,
+        key=lambda cluster: (
+            cluster["latest_detected"],
+            cluster["top_score"],
+            cluster["item_count"],
+        ),
+        reverse=True,
+    )
+
+
+def render_company_distribution(records: list[dict]) -> None:
+    distribution = build_company_distribution(records)
+    if not distribution:
+        return
+
+    counter = Counter({row["company_name"]: row["new_events"] for row in distribution})
+    top_company, top_count = counter.most_common(1)[0]
+    metrics = st.columns(3)
+    metrics[0].metric("Raw New Event Rows", len(records))
+    metrics[1].metric("Companies", len(distribution))
+    metrics[2].metric("Largest Company Share", f"{top_company}: {top_count}")
+
+    st.dataframe(distribution, use_container_width=True, hide_index=True)
+
+
+def render_clustered_changes(records: list[dict]) -> None:
+    clusters = build_change_clusters(records)
+    if not clusters:
+        st.info("No new events for this filter.")
+        return
+
+    st.caption(
+        f"Merged {len(records)} raw new-event rows into {len(clusters)} display rows. "
+        "Announcement packs group the same company, source, and published date."
+    )
+    render_dataframe_with_links(
+        clusters,
+        [
+            "cluster_title",
+            "company_name",
+            "item_count",
+            "published_date",
+            "event_types",
+            "top_score",
+            "source_name",
+            "summary",
+            "url",
+        ],
+    )
+
+    packed_clusters = [cluster for cluster in clusters if cluster["item_count"] > 1]
+    if packed_clusters:
+        with st.expander("Announcement Pack Details", expanded=False):
+            for cluster in packed_clusters:
+                st.markdown(f"**{cluster['cluster_title']}**")
+                render_dataframe_with_links(
+                    cluster["items"],
+                    [
+                        "title",
+                        "importance_score",
+                        "summary",
+                        "url",
+                    ],
+                )
+
+
 def get_dashboard_filters(database: BusinessDatabase) -> tuple[str, str | None, int]:
     companies = ["All"] + database.list_companies()
     columns = st.columns([1, 1, 1])
@@ -454,17 +643,13 @@ def render_dashboard(database: BusinessDatabase) -> None:
             "Shows historically new events plus meaningful page or job snapshot changes. "
             "Event changes are compared against the historical event library, not just the previous batch."
         )
-        render_dataframe_with_links(
-            changes,
-            [
-                "batch_date",
-                "company_name",
-                "change_type",
-                "importance_score",
-                "summary",
-                "url",
-            ],
-        )
+        with st.container(border=True):
+            st.subheader("Company Distribution")
+            render_company_distribution(changes)
+
+        with st.container(border=True):
+            st.subheader("Merged New Events")
+            render_clustered_changes(changes)
 
     with tabs[1]:
         st.caption(

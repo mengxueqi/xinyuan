@@ -149,6 +149,7 @@ Important behaviors:
 - `Dashboard` only shows:
   - `New Events`
   - `Change Analysis`
+- `Dashboard -> New Events` shows a company distribution first, then a merged view that groups announcement packs by company, source, and published date
 - `Report` only shows:
   - `Focus Events`
 - `Report` is anchored by a report file selection, but live focus-event content is pulled from the database for the report's covered date
@@ -285,6 +286,7 @@ Current behavior:
 
 - file name uses generated date
 - covered data date is written inside the report body
+- full pipeline runs regenerate the daily report after `sync_business_db`
 - the report overview contains:
   - Focus events
   - New events
@@ -315,6 +317,8 @@ Current schedule:
 - `09:00` scheduled pipeline
 - `16:00` scheduled pipeline
 
+The `09:00` and `16:00` pipeline runs also regenerate the daily report after syncing the business database.
+
 Pipeline stages:
 
 1. `crawl_sources`
@@ -322,6 +326,7 @@ Pipeline stages:
 3. `detect_changes`
 4. `build_insights`
 5. `sync_business_db`
+6. `generate_daily_report`
 
 Recent architecture improvements:
 

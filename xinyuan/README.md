@@ -12,6 +12,7 @@ Local monitoring system for selected biomanufacturing companies. The project col
 - Builds `Change Analysis` items from detected changes
 - Generates a daily report
 - Provides a local UI for browsing reports, searching events, and reviewing results
+- Groups same-day announcement packs in the dashboard so one disclosure package does not flood the view
 
 Current tracked companies:
 
@@ -120,6 +121,8 @@ Current schedule in [scheduler.py](D:\codex\xinyuan\scheduler.py):
 - `09:00` run scheduled pipeline
 - `16:00` run scheduled pipeline
 
+Note: the full pipeline now also regenerates the daily report after `sync_business_db`, so reports stay aligned with manual runs and the `09:00` / `16:00` scheduled crawls.
+
 ### Run both
 
 Use two terminals:
@@ -177,6 +180,7 @@ The scheduled pipeline runs in this order:
 3. `detect_changes`
 4. `build_insights`
 5. `sync_business_db`
+6. `generate_daily_report`
 
 Current architecture:
 
@@ -192,6 +196,7 @@ In plain language:
 - every event candidate is analyzed and scored into `processed_events`
 - dashboard-facing change analysis is written to `insight_items`
 - report focus events are selected from `processed_events`
+- daily report files are regenerated after each full pipeline run
 
 ## Event Library
 
