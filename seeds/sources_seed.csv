@@ -1,0 +1,50 @@
+﻿company_name,source_name,source_type,url,parser_type,crawl_frequency,is_active,priority,notes
+华恒生物,官网首页,web,https://www.huahengbio.com/,generic_web,daily,true,high,首批默认入口页，可用于发现新闻、导航和页面变化
+华恒生物,招聘页,jobs,https://www.huahengbio.com/join-us,jobs_page,daily,true,high,用于监控招聘岗位变化
+凯赛生物,官网首页,web,https://www.cathaybiotech.com/,generic_web,daily,true,high,首批默认入口页，可用于发现新闻、导航和页面变化
+凯赛生物,关于我们页,web,https://www.cathaybiotech.com/about.aspx,generic_web,daily,true,medium,适合监控生产基地、产能和公司描述变化
+蓝晶微生物,官网首页,web,https://www.bluepha.com/,generic_web,daily,true,high,官网聚合产品、平台、新闻等信息，适合页面变化监控
+川宁生物,官网首页,web,https://www.klcnsw.com/,generic_web,daily,true,high,首批默认入口页，可用于发现新闻、导航和页面变化
+川宁生物,投资者关系页,web,https://www.klcnsw.com/touzizhe/index.html,generic_web,daily,true,high,适合监控公告、业绩与合规动态
+恩和生物 Bota Bio,官网首页,web,https://bota.bio/,generic_web,daily,true,high,适合监控平台能力、新闻和制造相关变化
+CellX,官网首页,web,https://cellx.co/zh,generic_web,daily,true,high,适合监控中文官网新闻和业务页面变化
+CellX,职位页,jobs,https://cellx.co/en/positions,jobs_page,daily,true,high,用于监控招聘岗位变化
+行业通用,Fierce Biotech 全站 RSS,rss,https://www.fiercebiotech.com/rss/xml,rss_feed,daily,true,high,官方 RSS 页面列出的全站新闻源，适合补充国际 biotech 动态
+行业通用,Fierce Pharma Manufacturing RSS,rss,https://www.fiercepharma.com/rss/manufacturing/xml,rss_feed,daily,true,high,官方 RSS 页面列出的制造板块新闻源，适合监控工厂、设施、产能和供应链变化
+行业通用,BioWorld Asia-Pacific RSS,rss,https://www.bioworld.com/rss/23,rss_feed,daily,true,high,官方 Asia-Pacific 主题 RSS，适合亚洲和中国相关产业动态
+行业通用,BioWorld China RSS,rss,https://www.bioworld.com/rss/28,rss_feed,daily,true,high,官方 China 主题 RSS，适合中国公司和监管动态
+行业通用,BioWorld Deals and M&A RSS,rss,https://www.bioworld.com/rss/14,rss_feed,daily,true,medium,官方交易与合作主题 RSS，适合监控合作、授权、并购
+行业通用,BioWorld Financings RSS,rss,https://www.bioworld.com/rss/19,rss_feed,daily,true,medium,官方融资主题 RSS，适合监控投融资事件
+行业通用,BioWorld NMPA RSS,rss,https://www.bioworld.com/rss/topic/556-nmpa,rss_feed,daily,true,medium,官方 NMPA 主题 RSS，适合补充中国监管相关信息
+华恒生物,新闻与活动页,web,https://www.huahengbio.com/news-and-events,news_page,daily,true,high,官方新闻与活动列表页，优先用于抓取公司新闻、活动动态和公告类更新
+华恒生物,投资者关系页,web,https://www.huahengbio.com/investor-relations,ir_page,daily,true,medium,官方投资者关系页面，可补充公告、资本市场和公司披露信息
+华恒生物,产品页,web,https://www.huahengbio.com/product/72,product_page,daily,true,medium,产品详情页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+凯赛生物,新闻中心页,web,https://www.cathaybiotech.com/news.aspx,news_page,daily,true,high,官方新闻中心页，适合抓取公司新闻、合作和项目进展
+凯赛生物,投资者关系页,web,https://www.cathaybiotech.com/singgp.aspx,ir_page,daily,true,medium,官方投资者关系页面，可补充公告和资本市场相关信息
+凯赛生物,产品页,web,https://m.cathaybiotech.com/en/pro.aspx,product_page,daily,true,medium,产品总览页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+蓝晶微生物,新闻资讯页,web,https://www.bluepha.com/blog/categories,news_page,daily,true,high,官方博客/新闻分类页，适合抓取公司动态、材料平台进展和合作信息
+蓝晶微生物,平台页,web,https://www.bluepha.com/platforms,product_page,daily,true,medium,平台能力页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+川宁生物,新闻中心（首页聚合）,web,https://www.klcnsw.com/,news_hub_page,daily,true,medium,官网首页聚合动态入口，可用于识别新闻中心入口和首页动态更新
+川宁生物,通知公告（投资者关系页聚合）,web,https://www.klcnsw.com/touzizhe/index.html,notice_hub_page,daily,true,high,投资者关系聚合页，优先监控公告、披露和资本市场相关变化
+川宁生物,产品中心页,web,https://www.klcnsw.com/product/list-8.html,product_page,daily,true,medium,产品中心页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+恩和生物 Bota Bio,官方新闻页,web,https://bota.bio/bota-news/,news_page,daily,true,high,官方新闻页，适合抓取平台进展、合作、融资和产品能力更新
+恩和生物 Bota Bio,解决方案页,web,https://bota.bio/performance-protein-solutions/,product_page,daily,true,medium,解决方案页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+CellX,新闻中心（英文）,web,https://www.cellx.co/en/news,news_page,daily,true,high,官方英文新闻中心，适合抓取公司新闻、量产和合作动态
+CellX,新闻中心（中文站聚合）,web,https://cellx.co/zh,news_hub_page,daily,true,medium,中文站聚合入口，可辅助发现新闻、品牌动态和页面新增内容
+CellX,业务与产品页,web,https://cellx.co/en,product_page,daily,true,medium,业务与产品介绍页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+昆山亚香,官网首页,web,http://www.asiaaroma.com/,news_hub_page,daily,true,high,按官网首页聚合页解析，优先发现公司动态、产品信息和站内新增内容
+昆山亚香,天然香料产品页,web,http://www.asiaaroma.com/natural_spices.html,product_page,daily,true,medium,天然香料产品页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+昆山亚香,合成香料产品页,web,http://www.asiaaroma.com/synthetic_fragrances.html,product_page,daily,true,medium,合成香料产品页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+昆山亚香,凉味剂产品页,web,http://www.asiaaroma.com/cooling_agent.html,product_page,daily,true,medium,凉味剂产品页，仅纳入事件库供 Event Query 搜索，不参与 New Events 和 Focus Events
+华恒生物,东方财富股票页,web,https://quote.eastmoney.com/kcb/688639.html,generic_web,daily,true,medium,东方财富股票页，适合补充股票概览、公告入口和财报入口
+华恒生物,东方财富公告页,web,https://data.eastmoney.com/notices/stock/688639.html,news_page,daily,true,high,东方财富公告页，适合监控公告、年报、定期报告和项目披露
+华恒生物,东方财富财务分析页,web,https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/index?type=web&code=SH688639,generic_web,daily,true,medium,东方财富财务分析页，适合补充财报和业绩分析信息
+凯赛生物,东方财富股票页,web,https://quote.eastmoney.com/kcb/688065.html,generic_web,daily,true,medium,东方财富股票页，适合补充股票概览、公告入口和财报入口
+凯赛生物,东方财富公告页,web,https://data.eastmoney.com/notices/stock/688065.html,news_page,daily,true,high,东方财富公告页，适合监控公告、年报、定期报告和项目披露
+凯赛生物,东方财富财务分析页,web,https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/index?type=web&code=SH688065,generic_web,daily,true,medium,东方财富财务分析页，适合补充财报和业绩分析信息
+川宁生物,东方财富股票页,web,https://quote.eastmoney.com/sz301301.html,generic_web,daily,true,medium,东方财富股票页，适合补充股票概览、公告入口和财报入口
+川宁生物,东方财富公告页,web,https://data.eastmoney.com/notices/stock/301301.html,news_page,daily,true,high,东方财富公告页，适合监控公告、年报、定期报告和项目披露
+川宁生物,东方财富财务分析页,web,https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/index?type=web&code=SZ301301,generic_web,daily,true,medium,东方财富财务分析页，适合补充财报和业绩分析信息
+昆山亚香,东方财富股票页,web,https://quote.eastmoney.com/sz301220.html,generic_web,daily,true,medium,东方财富股票页，适合补充股票概览、公告入口和财报入口
+昆山亚香,东方财富公告页,web,https://data.eastmoney.com/notices/stock/301220.html,news_page,daily,true,high,东方财富公告页，适合监控公告、年报、定期报告和项目披露
+昆山亚香,东方财富财务分析页,web,https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/index?type=web&code=SZ301220,generic_web,daily,true,medium,东方财富财务分析页，适合补充财报和业绩分析信息

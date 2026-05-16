@@ -1,0 +1,11 @@
+桌面启动说明
+
+1. launchers\start_ui.cmd
+用于启动本地监控界面，默认访问 http://localhost:8501
+
+2. launchers\start_scheduler.cmd
+用于启动后台定时调度
+
+建议：
+- 优先用 launchers\start_ui.cmd 查看数据、立即抓取、阅读日报
+- 如果要长期后台定时运行，可使用 launchers\start_scheduler.cmd
