@@ -67,15 +67,9 @@ else {
 }
 
 $existingPid = Get-PortOwningProcessId -Port 8501
-$hadExistingProcess = $null -ne $existingPid
 if ($existingPid) {
-    try {
-        Stop-Process -Id $existingPid -Force -ErrorAction Stop
-        Start-Sleep -Seconds 2
-    }
-    catch {
-        throw "Existing UI process on port 8501 could not be stopped (PID: $existingPid)."
-    }
+    Start-Process "http://localhost:8501"
+    exit 0
 }
 
 $bootstrapPath = Join-Path $PSScriptRoot "bootstrap_ui.py"
@@ -97,6 +91,4 @@ if (-not $ready) {
     throw "UI server did not become ready on port 8501 in time."
 }
 
-if (-not $hadExistingProcess) {
-    Start-Process "http://localhost:8501"
-}
+Start-Process "http://localhost:8501"
