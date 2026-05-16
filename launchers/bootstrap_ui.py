@@ -13,24 +13,21 @@ if str(PROJECT_ROOT) not in sys.path:
 if SITE_PACKAGES.exists() and str(SITE_PACKAGES) not in sys.path:
     sys.path.insert(0, str(SITE_PACKAGES))
 
-from streamlit.web.bootstrap import run as streamlit_run
+from streamlit.web import cli as streamlit_cli
 
 
 def main() -> None:
     ui_script = PROJECT_ROOT / "ui_app.py"
-    streamlit_run(
+    sys.argv = [
+        "streamlit",
+        "run",
         str(ui_script),
-        False,
-        [],
-        {
-            "server.headless": True,
-            "browser.gatherUsageStats": False,
-            "global.developmentMode": False,
-            "server.address": "localhost",
-            "server.port": 8501,
-            "browser.serverAddress": "localhost",
-        },
-    )
+        "--server.address=localhost",
+        "--server.port=8510",
+        "--server.headless=true",
+        "--browser.gatherUsageStats=false",
+    ]
+    raise SystemExit(streamlit_cli.main())
 
 
 if __name__ == "__main__":

@@ -106,7 +106,7 @@ conda activate xinyuan
 streamlit run ui_app.py
 ```
 
-Open [http://localhost:8501](http://localhost:8501).
+Open [http://localhost:8510](http://localhost:8510).
 
 ### Run the scheduler
 
@@ -406,7 +406,7 @@ Make sure the environment is activated and run:
 streamlit run ui_app.py
 ```
 
-Then open [http://localhost:8501](http://localhost:8501).
+Then open [http://localhost:8510](http://localhost:8510).
 
 ### Scheduler does not run when the machine is off
 
